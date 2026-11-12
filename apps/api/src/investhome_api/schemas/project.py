@@ -138,6 +138,7 @@ class ProjectBase(BaseModel):
     projected_roi: Decimal | None = None
     projected_irr: Decimal | None = None
     currency: str = Field(default="USD", min_length=3, max_length=3)
+    uses_phases: bool = False
     completion_percentage: Decimal | None = Field(default=None, ge=0, le=100)
     acquisition_date: date | None = None
     start_date: date | None = None
@@ -214,6 +215,7 @@ class ProjectUpdate(BaseModel):
     project_type: ProjectType | None = None
     development_type: DevelopmentType | None = None
     project_status: ProjectStatus | None = None
+    uses_phases: bool | None = None
     priority: ProjectPriority | None = None
     development_stage: DevelopmentStage | None = None
     ownership_entity: str | None = Field(default=None, max_length=255)

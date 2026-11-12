@@ -68,6 +68,7 @@ class ProjectOverviewResponse(BaseModel):
 
 class ProjectFinancialsResponse(BaseModel):
     financial_access: bool
+    audience: str = "internal"
     summary: dict[str, MetricValue] | None = None
     budgets: list[dict[str, Any]] = Field(default_factory=list)
     capital: list[dict[str, Any]] = Field(default_factory=list)

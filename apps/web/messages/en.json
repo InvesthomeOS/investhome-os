@@ -227,27 +227,6 @@
         "documentType": "Document Type"
       }
     },
-    "notifications": {
-      "title": "Notifications",
-      "unread": "{count} unread notifications",
-      "items": {
-        "lead": {
-          "title": "New lead assigned",
-          "body": "A new lead for Marina Heights was assigned to you.",
-          "time": "5 minutes ago"
-        },
-        "meeting": {
-          "title": "Meeting reminder",
-          "body": "Your investor meeting starts in 30 minutes.",
-          "time": "12 minutes ago"
-        },
-        "payment": {
-          "title": "Payment approval pending",
-          "body": "The Greenview Residences payment plan awaits your review.",
-          "time": "1 hour ago"
-        }
-      }
-    },
     "toastDismiss": "Dismiss notification"
   },
   "theme": {
@@ -2015,6 +1994,7 @@
         "overview": "Overview",
         "construction": "Construction",
         "units": "Units & Sales",
+        "phases": "Phases",
         "financial": "Finance",
         "investors": "Investors",
         "documents": "Documents",
@@ -2156,6 +2136,9 @@
         "squareFeet": "Square feet",
         "price": "List price",
         "priceUnavailable": "—",
+        "contracted": "Contract",
+        "collected": "Collected",
+        "paymentPlan": "Payment plan",
         "investor": "Investor",
         "availability": "Availability",
         "salesStatus": "Sales status",
@@ -2175,6 +2158,7 @@
         },
         "marketFilter": "Sales market",
         "marketEmpty": "No units are allocated to this sales market.",
+        "phaseEmpty": "This phase does not have units yet.",
         "marketUnallocated": "Not allocated",
         "kpi": {
           "total": "Total units",
@@ -2207,7 +2191,27 @@
         "cashFlowChart": "Cash Flow Trend",
         "cashFlowHint": "Presentation series derived from budget burn and equity timing.",
         "metrics": {
-          "budget": "Budget",
+          "budget": "Total project cost",
+          "estimatedCost": "Estimated cost",
+          "actualCost": "Actual cost",
+          "remainingBudget": "Remaining budget",
+          "financing": "Financing",
+          "profitability": "Total project profit",
+          "loadError": "Financial data could not be loaded.",
+          "loading": "Loading financial data.",
+          "restricted": "Financial metrics require permission.",
+          "audienceInternal": "Internal proforma",
+          "audienceCustomer": "Customer proforma",
+          "investorCapital": "Investor committed capital",
+          "investorProfit": "Investor contracted profit",
+          "investorReturn": "Investor total return",
+          "investhomeProfit": "Investhome remaining estimated profit",
+          "contractedSales": "Contracted sales",
+          "collections": "Verified collections",
+          "receivable": "Remaining receivable",
+          "commission": "Commission",
+          "commissionPaid": "Commission paid",
+          "commissionRemaining": "Commission remaining",
           "spent": "Spent",
           "remaining": "Remaining",
           "forecast": "Forecast",
@@ -3702,6 +3706,17 @@
       },
       "investorPayTitle": "Investor Payments",
       "investorPaySubtitle": "Funding commitments and investor-linked transactions.",
+      "commitmentLedgerTitle": "Investor commitments",
+      "contractedProfit": "Contracted profit",
+      "contractedProfitHint": "Contracted profit uses the commitment currency. A blank value is not stored as zero.",
+      "contractedProfitBlank": "Can be left blank",
+      "contractedProfitInvalid": "Contracted profit amount is invalid.",
+      "committedAmount": "Committed capital",
+      "addCommitment": "Add commitment",
+      "saveCommitment": "Save",
+      "commitmentSaveError": "The commitment could not be saved.",
+      "selectProject": "Select a project",
+      "selectInvestor": "Select an investor",
       "investorKind": {
         "reservation": "Reservation",
         "deposit": "Deposit",
@@ -4999,6 +5014,7 @@
     "actions": {
       "markRead": "Mark read",
       "markAllRead": "Mark all read",
+      "clearAll": "Clear notifications",
       "dismiss": "Dismiss",
       "openRecord": "Open record"
     },
@@ -5051,8 +5067,56 @@
     },
     "crm": {
       "task_due": {
-        "title": "Follow-up task is due",
+        "title": "Task reminder",
         "message": "{title} is due now."
+      },
+      "task_overdue": {
+        "title": "Task is overdue",
+        "message": "Task is overdue: {title}"
+      },
+      "meeting_soon": {
+        "title": "Meeting reminder",
+        "message": "Your meeting is in {minutes} minutes: {title}"
+      },
+      "new_lead": {
+        "title": "New lead",
+        "message": "New lead: {name}"
+      },
+      "agreement_created": {
+        "title": "Agreement created",
+        "message": "A new agreement was created: {name}"
+      },
+      "instagram_message": {
+        "title": "New Instagram message",
+        "message": "{name}"
+      },
+      "facebook_message": {
+        "title": "New Facebook message",
+        "message": "{name}"
+      },
+      "social_published": {
+        "title": "Social post published",
+        "message": "{title} was published."
+      },
+      "tasks_overdue": {
+        "title": "Overdue task",
+        "message": "Task is overdue: {title}"
+      },
+      "meta_message": {
+        "title": "New Meta message",
+        "message": "{name}"
+      },
+      "meta_comment": {
+        "title": "New Meta comment",
+        "message": "{name}"
+      },
+      "agreement": {
+        "title": "Agreement",
+        "message": "Agreement updated: {name}"
+      },
+      "sale": {
+        "title": "Sale",
+        "message": "Sale recorded: {name}"
       }
     },
     "investor": {
@@ -6223,6 +6287,22 @@
     "save": "Save",
     "saving": "Saving…",
     "saved": "Your profile was updated.",
+    "notificationsTitle": "Notification settings",
+    "notificationsHint": "Important events stay in the app. Email is off until you turn it on for an event.",
+    "channelInApp": "In app",
+    "channelEmail": "Email",
+    "notificationsSaved": "Notification settings saved.",
+    "notificationsSaveFailed": "Notification settings could not be saved.",
+    "event": {
+      "instagram_message": "New Instagram message",
+      "facebook_message": "New Facebook message",
+      "new_lead": "New lead",
+      "task_reminder": "Task reminder",
+      "task_overdue": "Overdue task",
+      "meeting_reminder": "Meeting reminder",
+      "agreement_event": "Sale / agreement event",
+      "social_publish": "Social publishing"
+    },
     "saveFailed": "Unable to save your profile. Please try again.",
     "nameRequired": "Enter a first or last name.",
     "changePassword": "Change password",
@@ -7466,7 +7546,7 @@
       "matches": "Matches",
       "contacts": "Contacts",
       "junk": "Junk",
-      "agents": "Acentalar",
+      "agents": "Agents",
       "agreements": "Anlaşmalar",
       "companies": "Companies",
       "investors": "Investors",
@@ -8193,7 +8273,7 @@
       "archived": "Archived"
     },
     "agents": {
-      "title": "Acentalar",
+      "title": "Agents",
       "subtitle": "Broker and realtor contacts. Not a purchase list.",
       "statusFilter": "Status",
       "statusAll": "All",
@@ -9971,6 +10051,19 @@
         "purchase": "Purchase",
         "owner": "Owner",
         "due": "Due date",
+        "dueTime": "Due time",
+        "reminder": "Reminder",
+        "reminderNone": "No reminder",
+        "reminderOnTime": "At due time",
+        "reminder10": "10 minutes before",
+        "reminder15": "15 minutes before",
+        "reminder30": "30 minutes before",
+        "reminder60": "1 hour before",
+        "reminderDay": "1 day before",
+        "reminderChannel": "Reminder channel",
+        "channelInApp": "In app",
+        "channelEmail": "Email",
+        "channelBoth": "In app + email",
         "priority": "Priority",
         "status": "Status",
         "save": "Save",

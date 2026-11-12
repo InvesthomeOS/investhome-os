@@ -437,6 +437,7 @@ export function PilotHistoryStream({
   includeDocuments = false,
   heading,
   canSendEmail = false,
+  onAdd,
 }: {
   entries: ContactTimelineEntry[];
   documents: GalleryDocument[];
@@ -446,6 +447,7 @@ export function PilotHistoryStream({
   includeDocuments?: boolean;
   heading?: string;
   canSendEmail?: boolean;
+  onAdd?: () => void;
 }) {
   const tCard = useTranslations('crm.contactCard.ui');
   const tCommon = useTranslations('common');
@@ -503,8 +505,11 @@ export function PilotHistoryStream({
 
   return (
     <section className="crm-verify-detail__section" data-testid="contact-timeline">
-      <h2>
-        {heading ?? tCard('historyHeading')} <span>{filtered.length}</span>
+      <h2 className="crm-pd-task-actions">
+        <span>{heading ?? tCard('historyHeading')} <span>{filtered.length}</span></span>
+        {onAdd ? (
+          <button type="button" data-testid="communication-add" onClick={onAdd}>İletişim Ekle</button>
+        ) : null}
       </h2>
       <div className="crm-contact-card__history-filters" data-testid="contact-timeline-filters">
         {PILOT_HISTORY_FILTERS.map((item) => (

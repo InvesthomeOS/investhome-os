@@ -227,27 +227,6 @@
         "documentType": "Belge Türü"
       }
     },
-    "notifications": {
-      "title": "Bildirimler",
-      "unread": "{count} okunmamış bildirim",
-      "items": {
-        "lead": {
-          "title": "Yeni lead atandı",
-          "body": "Marina Heights için yeni bir lead size atandı.",
-          "time": "5 dakika önce"
-        },
-        "meeting": {
-          "title": "Toplantı hatırlatması",
-          "body": "Yatırımcı görüşmesi 30 dakika içinde başlıyor.",
-          "time": "12 dakika önce"
-        },
-        "payment": {
-          "title": "Ödeme onayı bekliyor",
-          "body": "Greenview Residences ödeme planı incelemenizi bekliyor.",
-          "time": "1 saat önce"
-        }
-      }
-    },
     "toastDismiss": "Bildirimi kapat"
   },
   "theme": {
@@ -2015,6 +1994,7 @@
         "overview": "Genel Bakış",
         "construction": "İnşaat",
         "units": "Üniteler & Satış",
+        "phases": "Fazlar",
         "financial": "Finans",
         "investors": "Yatırımcılar",
         "documents": "Belgeler",
@@ -2156,6 +2136,9 @@
         "squareFeet": "Metrekare (sf)",
         "price": "Liste fiyatı",
         "priceUnavailable": "—",
+        "contracted": "Sözleşme",
+        "collected": "Tahsilat",
+        "paymentPlan": "Ödeme planı",
         "investor": "Yatırımcı",
         "availability": "Müsaitlik",
         "salesStatus": "Satış durumu",
@@ -2175,6 +2158,7 @@
         },
         "marketFilter": "Satış pazarı",
         "marketEmpty": "Bu satış pazarına ayrılmış ünite yok.",
+        "phaseEmpty": "Bu fazda henüz ünite yok.",
         "marketUnallocated": "Henüz ayrılmadı",
         "kpi": {
           "total": "Toplam ünite",
@@ -2207,7 +2191,27 @@
         "cashFlowChart": "Nakit Akışı Trendi",
         "cashFlowHint": "Bütçe yanması ve özkaynak zamanlamasından türetilen sunum serisi.",
         "metrics": {
-          "budget": "Bütçe",
+          "budget": "Toplam proje maliyeti",
+          "estimatedCost": "Tahmini maliyet",
+          "actualCost": "Gerçekleşen maliyet",
+          "remainingBudget": "Kalan bütçe",
+          "financing": "Finansman",
+          "profitability": "Toplam proje kârı",
+          "loadError": "Finans verisi yüklenemedi.",
+          "loading": "Finans verisi yükleniyor.",
+          "restricted": "Finans metrikleri için yetki gerekir.",
+          "audienceInternal": "İç proforma",
+          "audienceCustomer": "Müşteri proforması",
+          "investorCapital": "Yatırımcı taahhüt sermayesi",
+          "investorProfit": "Yatırımcı sözleşmeli kârı",
+          "investorReturn": "Yatırımcı toplam geri dönüşü",
+          "investhomeProfit": "Investhome kalan tahmini kâr",
+          "contractedSales": "Sözleşmeli satış",
+          "collections": "Doğrulanmış tahsilat",
+          "receivable": "Kalan alacak",
+          "commission": "Komisyon",
+          "commissionPaid": "Ödenen komisyon",
+          "commissionRemaining": "Kalan komisyon",
           "spent": "Harcanan",
           "remaining": "Kalan",
           "forecast": "Tahmin",
@@ -3702,6 +3706,17 @@
       },
       "investorPayTitle": "Yatırımcı Ödemeleri",
       "investorPaySubtitle": "Fonlama taahhütleri ve yatırımcı bağlı işlemler.",
+      "commitmentLedgerTitle": "Yatırımcı taahhütleri",
+      "contractedProfit": "Sözleşmeli kâr",
+      "contractedProfitHint": "Sözleşmeli kâr, taahhüdün para birimindedir. Boş bırakılırsa kayda sıfır yazılmaz.",
+      "contractedProfitBlank": "Boş bırakılabilir",
+      "contractedProfitInvalid": "Sözleşmeli kâr tutarı geçersiz.",
+      "committedAmount": "Taahhüt edilen sermaye",
+      "addCommitment": "Taahhüt ekle",
+      "saveCommitment": "Kaydet",
+      "commitmentSaveError": "Taahhüt kaydedilemedi.",
+      "selectProject": "Proje seçin",
+      "selectInvestor": "Yatırımcı seçin",
       "investorKind": {
         "reservation": "Rezervasyon",
         "deposit": "Depozito",
@@ -4999,6 +5014,7 @@
     "actions": {
       "markRead": "Okundu işaretle",
       "markAllRead": "Tümünü okundu işaretle",
+      "clearAll": "Bildirimleri temizle",
       "dismiss": "Kapat",
       "openRecord": "Kaydı aç"
     },
@@ -5051,8 +5067,56 @@
     },
     "crm": {
       "task_due": {
-        "title": "Takip görevinin zamanı geldi",
+        "title": "Görev hatırlatması",
         "message": "{title} görevini yapma zamanı geldi."
+      },
+      "task_overdue": {
+        "title": "Görev süresi geçti",
+        "message": "Görev süresi geçti: {title}"
+      },
+      "meeting_soon": {
+        "title": "Toplantı hatırlatması",
+        "message": "{minutes} dakika sonra toplantınız var: {title}"
+      },
+      "new_lead": {
+        "title": "Yeni Lead",
+        "message": "Yeni Lead: {name}"
+      },
+      "agreement_created": {
+        "title": "Yeni anlaşma oluşturuldu",
+        "message": "Yeni anlaşma oluşturuldu: {name}"
+      },
+      "instagram_message": {
+        "title": "Instagram’dan yeni mesaj",
+        "message": "{name}"
+      },
+      "facebook_message": {
+        "title": "Facebook’tan yeni mesaj",
+        "message": "{name}"
+      },
+      "social_published": {
+        "title": "Sosyal medya yayını",
+        "message": "{title} yayınlandı."
+      },
+      "tasks_overdue": {
+        "title": "Geciken görev",
+        "message": "Görev süresi geçti: {title}"
+      },
+      "meta_message": {
+        "title": "Meta mesajı",
+        "message": "{name}"
+      },
+      "meta_comment": {
+        "title": "Meta yorumu",
+        "message": "{name}"
+      },
+      "agreement": {
+        "title": "Anlaşma",
+        "message": "Anlaşma güncellendi: {name}"
+      },
+      "sale": {
+        "title": "Satış",
+        "message": "Satış kaydedildi: {name}"
       }
     },
     "investor": {
@@ -6223,6 +6287,22 @@
     "save": "Kaydet",
     "saving": "Kaydediliyor…",
     "saved": "Profiliniz güncellendi.",
+    "notificationsTitle": "Bildirim Ayarları",
+    "notificationsHint": "Önemli olaylar uygulama içinde görünür. E-posta kapalıdır; yalnızca istediğiniz olaylar için açın.",
+    "channelInApp": "Uygulama içi",
+    "channelEmail": "E-posta",
+    "notificationsSaved": "Bildirim ayarları kaydedildi.",
+    "notificationsSaveFailed": "Bildirim ayarları kaydedilemedi.",
+    "event": {
+      "instagram_message": "Instagram yeni mesaj",
+      "facebook_message": "Facebook yeni mesaj",
+      "new_lead": "Yeni Lead",
+      "task_reminder": "Görev hatırlatması",
+      "task_overdue": "Geciken görev",
+      "meeting_reminder": "Toplantı hatırlatması",
+      "agreement_event": "Satış / Anlaşma olayı",
+      "social_publish": "Sosyal medya yayınlama"
+    },
     "saveFailed": "Profil kaydedilemedi. Lütfen yeniden deneyin.",
     "nameRequired": "Ad veya soyad girin.",
     "changePassword": "Şifre Değiştir",
@@ -16494,7 +16574,7 @@
       "matches": "Eşleşmeler",
       "contacts": "Kişiler",
       "junk": "Junk",
-      "agents": "Acentalar",
+      "agents": "Acenteler",
       "agreements": "Anlaşmalar",
       "companies": "Şirketler",
       "investors": "Yatırımcılar",
@@ -17221,17 +17301,17 @@
       "archived": "Arşivlendi"
     },
     "agents": {
-      "title": "Acentalar",
+      "title": "Acenteler",
       "subtitle": "Broker ve realtor kişiler. Satın alma listesi değildir.",
       "statusFilter": "Durum",
       "statusAll": "Tümü",
       "statusActive": "Aktif",
       "statusPassive": "Pasif",
       "emptyTitle": "Henüz acente yok",
-      "emptyDescription": "Bu görünümde gösterilecek acenta yok.",
-      "loadError": "Acentalar yüklenemedi.",
-      "loading": "Acentalar yükleniyor…",
-      "count": "{count} acenta",
+      "emptyDescription": "Bu görünümde gösterilecek acente yok.",
+      "loadError": "Acenteler yüklenemedi.",
+      "loading": "Acenteler yükleniyor…",
+      "count": "{count} acente",
       "viewsLabel": "Görünümler",
       "views": {
         "kanban": "KANBAN",
@@ -17248,10 +17328,10 @@
       "activityTypeFilter": "Etkinlik türü",
       "dateFrom": "Başlangıç",
       "dateTo": "Bitiş",
-      "emptyActivities": "Bu filtrelere uyan acenta etkinliği yok.",
-      "emptyCalendar": "Bu ayda kayıtlı acenta tarihi yok.",
+      "emptyActivities": "Bu filtrelere uyan acente etkinliği yok.",
+      "emptyCalendar": "Bu ayda kayıtlı acente tarihi yok.",
       "listColumns": {
-        "acenta": "Acenta",
+        "acenta": "Acente",
         "ofis": "Ofis/Şirket",
         "durum": "Durum",
         "telefon": "Telefon",
@@ -17274,7 +17354,7 @@
         "status": "Durum",
         "company": "Şirket"
       },
-      "tableAria": "Acenta listesi"
+      "tableAria": "Acente listesi"
     },
     "agreements": {
       "title": "Anlaşmalar",
@@ -18998,7 +19078,20 @@
         "project": "Proje",
         "purchase": "Satın Alma",
         "owner": "Sorumlu",
-        "due": "Son tarih",
+        "due": "Son Tarih",
+        "dueTime": "Son Saat",
+        "reminder": "Hatırlatma",
+        "reminderNone": "Hatırlatma yok",
+        "reminderOnTime": "Zamanında",
+        "reminder10": "10 dakika önce",
+        "reminder15": "15 dakika önce",
+        "reminder30": "30 dakika önce",
+        "reminder60": "1 saat önce",
+        "reminderDay": "1 gün önce",
+        "reminderChannel": "Hatırlatma Kanalı",
+        "channelInApp": "Uygulama içi",
+        "channelEmail": "E-posta",
+        "channelBoth": "Uygulama içi + E-posta",
         "priority": "Öncelik",
         "status": "Durum",
         "save": "Kaydet",
@@ -20123,7 +20216,7 @@
         "investor": "Yatırımcı",
         "other": "Diğer",
         "broker": "Broker",
-        "realtor": "Acenta"
+        "realtor": "Acente"
       },
       "flags": {
         "missingInfo": "Bilgi eksik",
@@ -20149,7 +20242,7 @@
         "countryCity": "Ülke / şehir",
         "lastActivity": "Son etkinlik",
         "relatedPeople": "İlgili kişiler",
-        "brokers": "Broker / acenta kişileri",
+        "brokers": "Broker / acente kişileri",
         "openWork": "Açık proje / işler",
         "relationshipTypes": "İlişki türleri",
         "documents": "Belgeler"

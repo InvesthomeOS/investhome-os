@@ -93,29 +93,48 @@ def notify_due_soon(db: Session, item: WorkItem) -> None:
 def notify_overdue(db: Session, item: WorkItem) -> None:
     if not item.assigned_user_id:
         return
-    _notify_user(
+    from investhome_api.services.user_notifications import DispatchRequest, dispatch_user_event
+
+    dispatch_user_event(
         db,
-        user_id=item.assigned_user_id,
-        rule_key=f"work.item.overdue.{item.id}",
-        title_key="notifications.work.overdue.title",
-        message_key="notifications.work.overdue.message",
-        item=item,
-        priority=NotificationPriority.HIGH,
-        ntype=NotificationType.WARNING,
+        DispatchRequest(
+            event_key="task_overdue",
+            recipient_user_id=item.assigned_user_id,
+            title_key="notifications.work.overdue.title",
+            message_key="notifications.work.overdue.message",
+            rule_key=f"work.item.overdue.{item.id}",
+            related_entity_type="work_item",
+            related_entity_id=item.id,
+            link_module="sales",
+            link_query={"work_item": str(item.id)},
+            notification_type=NotificationType.WARNING,
+            priority=NotificationPriority.HIGH,
+            metadata={"title": item.title, "name": item.title, "related_label": item.title},
+        ),
     )
 
 
 def notify_meeting_approaching(db: Session, item: WorkItem) -> None:
     if not item.assigned_user_id:
         return
-    _notify_user(
+    from investhome_api.services.user_notifications import DispatchRequest, dispatch_user_event
+
+    dispatch_user_event(
         db,
-        user_id=item.assigned_user_id,
-        rule_key=f"work.item.meeting_approaching.{item.id}",
-        title_key="notifications.work.meeting_approaching.title",
-        message_key="notifications.work.meeting_approaching.message",
-        item=item,
-        priority=NotificationPriority.HIGH,
+        DispatchRequest(
+            event_key="meeting_reminder",
+            recipient_user_id=item.assigned_user_id,
+            title_key="notifications.work.meeting_approaching.title",
+            message_key="notifications.work.meeting_approaching.message",
+            rule_key=f"work.item.meeting_approaching.{item.id}",
+            related_entity_type="work_item",
+            related_entity_id=item.id,
+            link_module="sales",
+            link_query={"work_item": str(item.id)},
+            notification_type=NotificationType.REMINDER,
+            priority=NotificationPriority.HIGH,
+            metadata={"title": item.title, "name": item.title, "minutes": "60", "related_label": item.title},
+        ),
     )
 
 

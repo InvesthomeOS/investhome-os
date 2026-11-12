@@ -28,6 +28,26 @@ def test_crm_dashboard(client: TestClient) -> None:
     assert summary["total_contacts"] >= 0
 
 
+def test_build_crm_dashboard_accepts_lead_filters_db(client: TestClient, db: Session) -> None:
+    """The dashboard must pass db into _lead_filters. An empty call raises TypeError."""
+    from investhome_api.models.user_auth import User, UserStatus
+    from investhome_api.services.crm_dashboard_service import build_crm_dashboard
+
+    warmup = client.get("/crm/dashboard")
+    assert warmup.status_code == 200, warmup.text
+    user = User(
+        full_name="Dashboard",
+        email="dashboard-filters@example.com",
+        hashed_password="x",
+        status=UserStatus.ACTIVE,
+    )
+    db.add(user)
+    db.commit()
+    dashboard = build_crm_dashboard(db, user)
+    assert dashboard.kpis is not None
+    assert dashboard.panels is not None
+
+
 def test_crm_contacts_list(client: TestClient) -> None:
     response = client.get("/crm/contacts?page=1&page_size=10")
     assert response.status_code == 200, response.text

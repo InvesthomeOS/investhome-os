@@ -240,6 +240,9 @@ def ingest_website_form(
             "page_url": payload.page_url,
         },
     )
+    from investhome_api.services.user_notifications import notify_new_lead
+
+    notify_new_lead(db, lead, contact_id=contact.id)
     log_activity(
         db,
         action=ActivityAction.NOTE_ADDED if matched_existing else ActivityAction.CREATED,

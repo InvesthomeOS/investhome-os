@@ -11,6 +11,10 @@ from sqlalchemy.orm import Session
 from investhome_api.api.deps.auth import require_permission
 from investhome_api.db.session import get_db
 from investhome_api.models.user_auth import User
+from investhome_api.schemas.crm_operations import (
+    CrmAgreementCreateResult,
+    CrmLeadAgreementConvertRequest,
+)
 from investhome_api.schemas.crm_leads import (
     CrmLeadBoardCardsResponse,
     CrmLeadBoardResponse,
@@ -24,6 +28,7 @@ from investhome_api.schemas.crm_leads import (
     CrmLeadUpdate,
 )
 from investhome_api.services.crm.activity_service import ActivityValidationError
+from investhome_api.services.crm.crm_operations import CrmOperationError, convert_lead_to_agreement
 from investhome_api.services.crm.crm_lead_service import (
     LEAD_CARD_PAGE_SIZE,
     LEAD_LIST_PAGE_SIZE,
@@ -81,6 +86,7 @@ def _lead_query(
     stage: str | None,
     source: str | None,
     project: str | None,
+    phase_id: UUID | None,
     owner_id: UUID | None,
     date_from: datetime | None,
     date_to: datetime | None,
@@ -93,6 +99,7 @@ def _lead_query(
         "stage": stage,
         "source": source,
         "project": project,
+        "phase_id": phase_id,
         "owner_id": owner_id,
         "date_from": date_from,
         "date_to": date_to,
@@ -110,6 +117,7 @@ def list_leads_workspace(
     stage: Annotated[str | None, Query(max_length=40)] = None,
     source: Annotated[str | None, Query(max_length=100)] = None,
     project: Annotated[str | None, Query(max_length=255)] = None,
+    phase_id: Annotated[UUID | None, Query()] = None,
     owner_id: Annotated[UUID | None, Query()] = None,
     date_from: Annotated[datetime | None, Query()] = None,
     date_to: Annotated[datetime | None, Query()] = None,
@@ -129,6 +137,7 @@ def list_leads_workspace(
             stage=stage,
             source=source,
             project=project,
+            phase_id=phase_id,
             owner_id=owner_id,
             date_from=date_from,
             date_to=date_to,
@@ -147,6 +156,7 @@ def lead_board_cards_route(
     search: Annotated[str | None, Query(max_length=255)] = None,
     source: Annotated[str | None, Query(max_length=100)] = None,
     project: Annotated[str | None, Query(max_length=255)] = None,
+    phase_id: Annotated[UUID | None, Query()] = None,
     owner_id: Annotated[UUID | None, Query()] = None,
     date_from: Annotated[datetime | None, Query()] = None,
     date_to: Annotated[datetime | None, Query()] = None,
@@ -165,6 +175,7 @@ def lead_board_cards_route(
         search=search,
         source=source,
         project=project,
+        phase_id=phase_id,
         owner_id=owner_id,
         date_from=date_from,
         date_to=date_to,
@@ -183,6 +194,7 @@ def lead_board_route(
     stage: Annotated[str | None, Query(max_length=40)] = None,
     source: Annotated[str | None, Query(max_length=100)] = None,
     project: Annotated[str | None, Query(max_length=255)] = None,
+    phase_id: Annotated[UUID | None, Query()] = None,
     owner_id: Annotated[UUID | None, Query()] = None,
     date_from: Annotated[datetime | None, Query()] = None,
     date_to: Annotated[datetime | None, Query()] = None,
@@ -200,6 +212,7 @@ def lead_board_route(
             stage=stage,
             source=source,
             project=project,
+            phase_id=phase_id,
             owner_id=owner_id,
             date_from=date_from,
             date_to=date_to,
@@ -308,6 +321,35 @@ def move_lead_stage(
     except ActivityValidationError as exc:
         db.rollback()
         raise _bad_request(str(exc)) from exc
+
+
+@router.post("/{lead_id}/convert-agreement", response_model=CrmAgreementCreateResult)
+def convert_lead_to_agreement_route(
+    lead_id: UUID,
+    payload: CrmLeadAgreementConvertRequest,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "update"))],
+) -> CrmAgreementCreateResult:
+    try:
+        result = convert_lead_to_agreement(
+            db,
+            lead_id,
+            actor=user,
+            project_group=payload.project_group,
+            unit_number=payload.unit_number,
+            phase_id=payload.phase_id,
+            inventory_asset_id=payload.inventory_asset_id,
+            investment_amount=payload.investment_amount,
+            agreement_date=payload.agreement_date,
+        )
+        db.commit()
+        return CrmAgreementCreateResult(**result)
+    except LeadNotFoundError as exc:
+        db.rollback()
+        raise _not_found() from exc
+    except (LeadValidationError, CrmOperationError, ValueError) as exc:
+        db.rollback()
+        raise _lead_validation_http(exc) if isinstance(exc, LeadValidationError) else _bad_request(str(exc)) from exc
 
 
 @router.post("/{lead_id}/convert", response_model=CrmLeadConvertResponse)

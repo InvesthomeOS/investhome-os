@@ -509,3 +509,26 @@ def sync_notifications_for_all_users(db: Session) -> int:
         total += sync_notifications_for_user(db, user)
     db.commit()
     return total
+
+
+JOB_NOTIFICATION_RULE_SYNC = "notification_rule_sync"
+
+
+def run_notification_rule_sync() -> dict[str, int]:
+    """Regenerate legacy business-rule notifications outside the HTTP request."""
+    from investhome_api.db import session as db_session
+
+    db = db_session.SessionLocal()
+    try:
+        created = sync_notifications_for_all_users(db)
+        return {"notifications_synced": created}
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+async def notification_rule_sync_job(ctx: dict) -> dict[str, int]:
+    del ctx
+    return run_notification_rule_sync()

@@ -9,6 +9,7 @@ import type { CrmContactSummary } from '@/workspaces/crm/types';
 
 import {
   agentFlags,
+  displayAgentStage,
   displayDate,
   normalizeAgentStage,
   plainNotes,
@@ -92,7 +93,7 @@ export function AgentsList({
       case 'ofis':
         return agent.organization_name || agent.company_name || '';
       case 'durum':
-        return normalizeAgentStage(agent);
+        return displayAgentStage(normalizeAgentStage(agent));
       case 'telefon':
         return agent.primary_phone || '';
       case 'eposta':

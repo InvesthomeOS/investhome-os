@@ -22,7 +22,9 @@ export type ContactListParams = {
   category?: 'customer' | 'agent' | 'agreement' | 'investor';
   junk_reason?: string;
   agreement_project?: string;
-  bitrix_list?: 'current_junk';
+  project_id?: string;
+  phase_id?: string;
+  bitrix_list?: 'current_junk' | 'agency_customers';
   flag?: 'bilgi_eksik' | 'inceleme_gerekli';
   has_investments?: boolean;
   tag_id?: string;
@@ -129,6 +131,8 @@ function buildSearchParams(params: ContactListParams): URLSearchParams {
   if (params.category) search.set('category', params.category);
   if (params.junk_reason) search.set('junk_reason', params.junk_reason);
   if (params.agreement_project) search.set('agreement_project', params.agreement_project);
+  if (params.project_id) search.set('project_id', params.project_id);
+  if (params.phase_id) search.set('phase_id', params.phase_id);
   if (params.bitrix_list) search.set('bitrix_list', params.bitrix_list);
   if (params.flag) search.set('flag', params.flag);
   if (params.has_investments === true) search.set('has_investments', 'true');
@@ -140,6 +144,25 @@ function buildSearchParams(params: ContactListParams): URLSearchParams {
   if (params.sort_by) search.set('sort_by', params.sort_by);
   if (params.sort_dir) search.set('sort_dir', params.sort_dir);
   return search;
+}
+
+export type MembershipPhase = {
+  id: string;
+  name: string;
+  display_order: number;
+  active: boolean;
+};
+
+export type MembershipProject = {
+  project_id: string | null;
+  project_group: string | null;
+  label: string;
+  currency?: string | null;
+  phases: MembershipPhase[];
+};
+
+export async function fetchMembershipProjects(): Promise<MembershipProject[]> {
+  return apiFetch<MembershipProject[]>('/crm/contacts/membership-projects');
 }
 
 export async function fetchContacts(params: ContactListParams = {}): Promise<CrmContactListResponse> {

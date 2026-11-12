@@ -5,12 +5,14 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from investhome_api.api.deps.auth import require_permission
 from investhome_api.core.request_context import get_request_id
 from investhome_api.db.session import get_db
 from investhome_api.models.activity import ActivityAction, ActivityEntityType
+from investhome_api.models.crm_agreement import CrmAgreement, CrmAgreementParticipant
 from investhome_api.models.crm_contact import (
     CrmContactPriority,
     CrmContactStatus,
@@ -19,6 +21,7 @@ from investhome_api.models.crm_contact import (
 )
 from investhome_api.models.user_auth import User
 from investhome_api.schemas.crm import CrmTagAssignRequest
+from investhome_api.schemas.crm_operations import CrmContactProcesses
 from investhome_api.schemas.crm_contacts import (
     CrmContactAssignOwnerRequest,
     CrmContactBulkUpdateRequest,
@@ -58,6 +61,7 @@ from investhome_api.services.crm.tag_service import (
     assign_tag,
     remove_tag,
 )
+from investhome_api.services.crm.crm_operations import CrmOperationError, list_contact_processes
 from investhome_api.services.crm.contact_service import (
     CRM_CONTACT_ACTIVITY_FIELDS,
     ContactSensitiveFieldDenied,
@@ -121,7 +125,9 @@ def list_contacts(
     category: str | None = Query(default=None, pattern="^(customer|agent|agreement|investor)$"),
     junk_reason: str | None = Query(default=None, max_length=255),
     agreement_project: str | None = Query(default=None, max_length=40),
-    bitrix_list: str | None = Query(default=None, pattern="^(current_junk)$"),
+    project_id: UUID | None = Query(default=None),
+    phase_id: UUID | None = Query(default=None),
+    bitrix_list: str | None = Query(default=None, pattern="^(current_junk|agency_customers)$"),
     flag: str | None = Query(default=None, pattern="^(bilgi_eksik|inceleme_gerekli)$"),
     has_investments: bool | None = Query(default=None),
     tag_id: UUID | None = Query(default=None),
@@ -148,6 +154,8 @@ def list_contacts(
         category=category,
         junk_reason=junk_reason,
         agreement_project=agreement_project,
+        project_id=project_id,
+        phase_id=phase_id,
         bitrix_list=bitrix_list,
         flag=flag,
         has_investments=has_investments,
@@ -210,6 +218,17 @@ def get_people_counts(
 ) -> CrmPeopleCounts:
     del user
     return people_workspace_counts(db)
+
+
+@router.get("/membership-projects")
+def get_membership_projects(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("crm", "read")),
+) -> list[dict[str, object]]:
+    del user
+    from investhome_api.services.crm.person_project_membership import list_membership_projects
+
+    return list_membership_projects(db)
 
 
 @router.get("/investor-counts", response_model=CrmInvestorCounts)
@@ -380,6 +399,27 @@ def get_contact(
     return serialize_contact_detail(db, contact, user=user, project_context=project_context)
 
 
+@router.get("/{contact_id}/processes", response_model=CrmContactProcesses)
+def get_contact_processes(
+    contact_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("crm", "read")),
+    lead_id: UUID | None = Query(default=None),
+    agreement_id: UUID | None = Query(default=None),
+) -> CrmContactProcesses:
+    del user
+    try:
+        payload = list_contact_processes(
+            db,
+            contact_id,
+            focus_lead_id=lead_id,
+            focus_agreement_id=agreement_id,
+        )
+    except CrmOperationError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return CrmContactProcesses(**payload)
+
+
 @router.post("", response_model=CrmContactMutationResponse, status_code=status.HTTP_201_CREATED)
 def create_contact_record(
     body: CrmContactCreate,
@@ -538,6 +578,19 @@ def remove_contact(
     user: User = Depends(require_permission("crm", "delete")),
 ) -> None:
     contact = _get_contact_or_404(db, contact_id)
+    agreement_id = db.scalar(
+        select(CrmAgreement.id).where(CrmAgreement.contact_id == contact_id).limit(1)
+    )
+    participant_id = db.scalar(
+        select(CrmAgreementParticipant.id)
+        .where(CrmAgreementParticipant.contact_id == contact_id)
+        .limit(1)
+    )
+    if agreement_id is not None or participant_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Contact with agreements cannot be deleted. Archive the contact instead.",
+        )
     before = snapshot_entity(contact, CRM_CONTACT_ACTIVITY_FIELDS)
     delete_contact(db, contact)
     log_activity(

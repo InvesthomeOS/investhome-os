@@ -252,6 +252,9 @@ def publish_social_post(db: Session, user: User, post_id: UUID, *, idempotency_k
         post.status = SocialPostStatus.PUBLISHED
         post.published_at = datetime.now(UTC)
         event_type = DeliveryEventType.PUBLISHED
+        from investhome_api.services.user_notifications import notify_social_published
+
+        notify_social_published(db, user_id=user.id, post_id=post.id, title=(post.body_text or "Sosyal medya")[:120])
     else:
         event_type = DeliveryEventType.NOT_CONNECTED
 

@@ -159,6 +159,19 @@ def create_notification(
                 db.add(notification)
                 db.flush()
                 result = notification
+                try:
+                    from investhome_api.services.web_push import dispatch_web_push
+
+                    meta = enriched if isinstance(enriched, dict) else {}
+                    dispatch_web_push(
+                        db,
+                        user_id=recipient_user_id,
+                        title=str(meta.get("title") or meta.get("name") or title_key),
+                        body=str(meta.get("message") or meta.get("name") or message_key),
+                        notification_id=str(notification.id),
+                    )
+                except Exception:
+                    logger.info("web push dispatch skipped")
         if commit:
             db.commit()
             db.refresh(result)
@@ -388,6 +401,27 @@ def mark_all_read(db: Session, user: User) -> int:
         if user_can_view_notification(user, notification):
             notification.status = NotificationStatus.READ
             notification.read_at = now
+            count += 1
+    db.flush()
+    return count
+
+
+def dismiss_all(db: Session, user: User) -> int:
+    """Archive the inbox. Rows stay in the table with status dismissed."""
+    now = datetime.now(UTC)
+    notifications = list(
+        db.scalars(
+            select(Notification).where(
+                Notification.recipient_user_id == user.id,
+                Notification.status != NotificationStatus.DISMISSED,
+            )
+        ).all()
+    )
+    count = 0
+    for notification in notifications:
+        if user_can_view_notification(user, notification):
+            notification.status = NotificationStatus.DISMISSED
+            notification.dismissed_at = now
             count += 1
     db.flush()
     return count

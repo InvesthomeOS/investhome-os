@@ -181,44 +181,64 @@
 }
 
 .crm-agreements-kanban {
+  display: block;
+  min-width: 0;
+  max-height: calc(100vh - 330px);
+  overflow: auto;
+  padding-bottom: 8px;
+  scrollbar-gutter: stable;
+}
+
+.crm-agreements-kanban__inner {
+  min-width: calc(5 * 280px + 4 * 14px);
+}
+
+.crm-agreements-kanban__header-row,
+.crm-agreements-kanban__columns {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(280px, 320px);
+  grid-template-columns: repeat(5, minmax(280px, 1fr));
   gap: 14px;
-  overflow-x: auto;
-  padding: 2px 2px 10px;
+}
+
+.crm-agreements-kanban__header-row {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  padding-bottom: 8px;
+  background: #f4f7f8;
+}
+
+.crm-agreements-kanban__header-cell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 280px;
+  padding: 11px 12px;
+  border: 1.5px solid var(--ag-line);
+  border-radius: 16px 16px 10px 10px;
+  background: #fff;
+  box-shadow: 0 4px 10px rgba(7, 91, 117, 0.06);
+  color: var(--ag-ink);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.crm-agreements-kanban__header-cell strong {
+  flex: 0 0 auto;
+  color: var(--ag-petrol);
+  font-size: 13px;
 }
 
 .crm-agreements-column {
   min-width: 280px;
+  min-height: 280px;
   padding: 12px;
   border: 1.5px solid var(--ag-line);
   border-radius: 16px;
   background: var(--ag-soft);
   box-shadow: 0 4px 12px rgba(7, 91, 117, 0.06);
-}
-
-.crm-agreements-column h2 {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-  margin: 0 0 12px;
-  color: var(--ag-ink);
-  font-size: 13px;
-  font-weight: 750;
-  line-height: 1.3;
-}
-
-.crm-agreements-column h2 span {
-  min-width: 0;
-  white-space: normal;
-}
-
-.crm-agreements-column h2 strong {
-  flex: 0 0 auto;
-  color: var(--ag-petrol);
-  font-size: 13px;
 }
 
 .crm-agreements-column__cards {

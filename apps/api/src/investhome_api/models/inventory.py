@@ -6,11 +6,14 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
+    Boolean,
     Date,
     DateTime,
     Enum,
     ForeignKey,
     Index,
+    Integer,
+    JSON,
     Numeric,
     String,
     Text,
@@ -281,14 +284,50 @@ class Floor(Base):
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class ProjectPhase(Base):
+    """Optional sales phase inside a project. Not part of the unit identifier."""
+
+    __tablename__ = "project_phases"
+    __table_args__ = (
+        UniqueConstraint("project_id", "name", name="uq_project_phases_project_name"),
+        Index("ix_project_phases_project_id", "project_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    display_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    address_line: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    region: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    postal_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    metadata_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
 class InventoryAsset(Base):
     __tablename__ = "inventory_assets"
     __table_args__ = (
         UniqueConstraint(
             "project_id",
-            "building_id",
+            "phase_id",
             "display_id",
-            name="uq_inventory_assets_project_building_display",
+            name="uq_inventory_assets_project_phase_display",
             postgresql_nulls_not_distinct=True,
         ),
         Index("ix_inventory_assets_project_id", "project_id"),
@@ -316,6 +355,12 @@ class InventoryAsset(Base):
         ForeignKey("floors.id", ondelete="SET NULL"),
         nullable=True,
     )
+    phase_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("project_phases.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    # Business unit identifier (101, PH1, A-201). Internal primary key stays `id`.
     display_id: Mapped[str] = mapped_column(String(50), nullable=False)
     system_code: Mapped[str] = mapped_column(String(100), nullable=False)
     legal_identifier: Mapped[str | None] = mapped_column(String(100), nullable=True)

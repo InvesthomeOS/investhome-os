@@ -231,6 +231,11 @@ export type TaskWritePayload = {
   due_on?: string;
   due_time?: string;
   timezone?: string;
+  reminders?: Array<{
+    channel: 'in_app' | 'email' | 'notification';
+    remind_at: string;
+    offset_minutes?: number | null;
+  }>;
   priority?: CrmActivityPriority;
   task_status?: CrmTaskStatus;
   entity_type?: CrmActivityEntityType;
@@ -409,8 +414,15 @@ export type ActivityInput = {
   end_date?: string;
   duration_minutes?: number;
   due_date?: string;
+  due_on?: string;
+  due_time?: string;
   reminder_date?: string;
   timezone?: string;
+  reminders?: Array<{
+    channel: 'in_app' | 'email' | 'notification';
+    remind_at: string;
+    offset_minutes?: number | null;
+  }>;
   location?: string;
   meeting_url?: string;
   tags?: string[];

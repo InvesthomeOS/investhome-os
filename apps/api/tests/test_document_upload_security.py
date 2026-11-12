@@ -237,3 +237,45 @@ def test_production_fail_closed_when_malware_scan_enabled(monkeypatch: pytest.Mo
         scan_upload_or_raise(b"hello text", filename="note.txt")
     assert exc.value.status_code == 503
     assert exc.value.detail == "documents.errors.malware_scan_unavailable"
+
+
+def test_extensionless_pdf_jpeg_png_accepted(client: TestClient) -> None:
+    pdf = _post_upload(client, "contract", _pdf(), "application/octet-stream")
+    jpeg = _post_upload(client, "photo", _jpeg(), "application/octet-stream")
+    png = _post_upload(client, "scan", _png(), "image/png")
+    assert pdf["success"] is True
+    assert pdf["document"]["file_extension"] == "pdf"
+    assert pdf["document"]["original_file_name"].endswith(".pdf")
+    assert jpeg["success"] is True
+    assert jpeg["document"]["file_extension"] == "jpg"
+    assert png["success"] is True
+    assert png["document"]["file_extension"] == "png"
+
+
+def test_extensionless_dangerous_and_ambiguous_rejected(client: TestClient) -> None:
+    html = _post_upload(client, "page", b"<html><script>alert(1)</script></html>", "text/html")
+    executable = _post_upload(client, "payload", _mz_executable(), "application/octet-stream")
+    ambiguous = _post_upload(client, "notes", b"plain meeting notes without a type\n", "text/plain")
+    ole = _post_upload(client, "legacy", b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00" * 64, "application/octet-stream")
+    assert html["success"] is False
+    assert html["error"] == "documents.errors.blocked_type"
+    assert executable["success"] is False
+    assert executable["error"] == "documents.errors.blocked_type"
+    assert ambiguous["success"] is False
+    assert ambiguous["error"] == "documents.errors.unknown_type"
+    assert ole["success"] is False
+    assert ole["error"] == "documents.errors.unknown_type"
+
+
+def test_batch_keeps_successful_file_when_another_fails(client: TestClient) -> None:
+    response = client.post(
+        "/documents/upload",
+        files=[
+            ("files", ("good", io.BytesIO(_pdf()), "application/octet-stream")),
+            ("files", ("bad", io.BytesIO(b"<html><body>no</body></html>"), "text/html")),
+        ],
+    )
+    assert response.status_code == 201
+    results = response.json()["results"]
+    assert results[0]["success"] is True
+    assert results[1]["success"] is False

@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import type { Route } from 'next';
 import { useMemo, useState } from 'react';
 import { useLocale } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
@@ -16,6 +15,7 @@ import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { fetchCrmTag } from '@/workspaces/crm/api/crm';
 import {
   fetchJunkReasons,
+  fetchMembershipProjects,
   fetchPeopleCounts,
   type ContactListParams,
 } from '@/workspaces/crm/api/contacts';
@@ -26,27 +26,19 @@ import type { CrmContactSummary } from '@/workspaces/crm/types';
 import '../../agreements/_components/agreements-workspace.css';
 import './ds/contacts-ds.css';
 import './people-workspace.css';
-import { AgentsWorkspace } from '../../agents/_components/agents-workspace';
 import { PeopleQuickPreview, initials } from './people-quick-preview';
 
 const PAGE_SIZES = [10, 25, 50] as const;
-
-const AGREEMENT_PROJECTS = [
-  { value: '1307_k_st', label: '1307 K St' },
-  { value: '1313_penn', label: '1313 Penn' },
-  { value: '1812_h_pl', label: '1812 H Pl' },
-  { value: '2319_ontario', label: '2319 Ontario' },
-  { value: 'reit', label: 'REIT' },
-  { value: 'the_temple', label: 'The Temple' },
-  { value: 'uniloft', label: 'Uniloft' },
-] as const;
 
 const TYPE_LABELS: Record<string, string> = {
   investor: 'Yatırımcı',
   prospect: 'Potansiyel',
   buyer: 'Alıcı',
-  broker: 'Broker',
-  realtor: 'Realtor',
+  broker: 'Acente',
+  realtor: 'Acente',
+  agent: 'Acente',
+  acenta: 'Acente',
+  acente: 'Acente',
   partner: 'Partner',
   vendor: 'Tedarikçi',
   contractor: 'Yüklenici',
@@ -70,6 +62,8 @@ const COPY = {
     source: 'Kaynak',
     junkReason: 'Junk Sebebi',
     agreementProject: 'Proje',
+    phase: 'Faz',
+    allPhases: 'Tüm fazlar',
     all: 'Tümü',
     active: 'Aktif',
     junk: 'Junk',
@@ -78,8 +72,8 @@ const COPY = {
     bitrix: 'Bitrix',
     otherSource: 'Diğer',
     customer: 'Müşteri',
-    agent: 'Acenta',
-    agents: 'Acentalar',
+    agent: 'Acente',
+    agents: 'Acenteler',
     audienceAria: 'Kişi kapsamı',
     agreement: 'Anlaşmalı',
     allOwners: 'Tüm sorumlular',
@@ -125,6 +119,8 @@ const COPY = {
     source: 'Source',
     junkReason: 'Junk reason',
     agreementProject: 'Project',
+    phase: 'Phase',
+    allPhases: 'All phases',
     all: 'All',
     active: 'Active',
     junk: 'Junk',
@@ -205,9 +201,10 @@ type PeopleCopy = (typeof COPY)[keyof typeof COPY];
 
 function typeLabel(contact: CrmContactSummary, copy: PeopleCopy): string {
   const types = (contact.contact_types?.length ? contact.contact_types : [contact.contact_type]).filter(Boolean);
-  const labels = types.map((item) => TYPE_LABELS[item] || item);
-  if (contact.has_agreements && !labels.includes(copy.agreement)) labels.push(copy.agreement);
-  return labels.join(' · ');
+  const labels = types.map((item) => TYPE_LABELS[item] || item.replace(/Acenta/g, 'Acente').replace(/acenta/g, 'acente'));
+  const unique = labels.filter((label, index) => labels.findIndex((item) => item.toLocaleLowerCase('tr') === label.toLocaleLowerCase('tr')) === index);
+  if (contact.has_agreements && !unique.includes(copy.agreement)) unique.push(copy.agreement);
+  return unique.join(' · ');
 }
 
 function warningFlags(contact: CrmContactSummary): string[] {
@@ -248,14 +245,14 @@ export function PeopleWorkspace() {
   const [searchDraft, setSearchDraft, search] = useDebouncedQueryParam('q', undefined, { resetPage: true });
   const tagId = searchParams.get('tag') || '';
   const { openContact } = useContactCard();
-  const { authLoading, canRead, canCreate } = useCrmAccess();
-  const audience = searchParams.get('audience') === 'agents' ? 'agents' : 'all';
+  const { authLoading, canRead } = useCrmAccess();
   const tab = peopleTab(searchParams.get('tab'));
   const category = peopleCategory(searchParams.get('category'));
   const ownerId = searchParams.get('owner') ?? '';
   const sourceParam = searchParams.get('source');
   const source = sourceParam === 'bitrix' || sourceParam === 'other' ? sourceParam : '';
   const agreementProject = searchParams.get('project') ?? '';
+  const phaseId = searchParams.get('phase') ?? '';
   const junkReason = searchParams.get('junk') ?? '';
   const page = Math.max(1, Number(searchParams.get('page') || '1') || 1);
   const sizeParam = Number(searchParams.get('size'));
@@ -276,7 +273,9 @@ export function PeopleWorkspace() {
       category: category || undefined,
       owner_user_id: ownerId || undefined,
       source_group: source || undefined,
-      agreement_project: agreementProject || undefined,
+      agreement_project: agreementProject && !agreementProject.includes('-') ? agreementProject : undefined,
+      project_id: agreementProject.includes('-') ? agreementProject : undefined,
+      phase_id: phaseId || undefined,
       junk_reason: tab === 'junk' ? junkReason || undefined : undefined,
       tag_id: tagId || undefined,
       include_archived: tab !== 'active',
@@ -290,7 +289,7 @@ export function PeopleWorkspace() {
     if (tab === 'review') next.flag = 'inceleme_gerekli';
     if (tab === 'missing') next.flag = 'bilgi_eksik';
     return next;
-  }, [agreementProject, category, junkReason, ownerId, page, pageSize, search, sortBy, sortDir, source, tab, tagId]);
+  }, [agreementProject, category, junkReason, ownerId, page, pageSize, phaseId, search, sortBy, sortDir, source, tab, tagId]);
 
   const contactsQuery = useQuery({
     ...contactQueries.list(params),
@@ -321,7 +320,16 @@ export function PeopleWorkspace() {
   const pages = Math.max(1, contactsQuery.data?.pages ?? 1);
   const counts = countsQuery.data ?? emptyCounts();
   const selected = rows.find((row) => row.id === selectedId) ?? null;
-  const filtersActive = Boolean(searchDraft || category || ownerId || source || agreementProject || junkReason || tagId);
+  const filtersActive = Boolean(searchDraft || category || ownerId || source || agreementProject || phaseId || junkReason || tagId);
+  const membershipQuery = useQuery({
+    queryKey: ['crm-membership-projects'],
+    queryFn: fetchMembershipProjects,
+    enabled: !authLoading && canRead,
+  });
+  const selectedMembership = (membershipQuery.data ?? []).find(
+    (item) => item.project_id === agreementProject || item.project_group === agreementProject,
+  );
+  const phaseOptions = (selectedMembership?.phases ?? []).filter((phase) => phase.active);
 
   const toggleSort = (column: string, initial: 'asc' | 'desc') => {
     if (sortBy === column) {
@@ -346,6 +354,7 @@ export function PeopleWorkspace() {
       owner: null,
       source: null,
       project: null,
+      phase: null,
       junk: null,
       page: null,
       sort: null,
@@ -366,39 +375,9 @@ export function PeopleWorkspace() {
           <Link href="/workspaces/crm/contacts/tools" className="crm-people-tools" data-testid="crm-people-tools-link">
             {copy.tools}
           </Link>
-          {canCreate ? (
-            <Link href={'/workspaces/crm/contacts/new' as Route} className="crm-people-new" data-testid="crm-people-new">
-              {copy.newPerson}
-            </Link>
-          ) : null}
         </div>
       </header>
 
-      <section className="crm-people-summary" aria-label={copy.audienceAria}>
-        <button
-          type="button"
-          className={audience === 'all' ? 'is-active' : undefined}
-          onClick={() => patch({ audience: null })}
-        >
-          <span>
-            <span>{copy.all}</span>
-          </span>
-        </button>
-        <button
-          type="button"
-          className={audience === 'agents' ? 'is-active' : undefined}
-          onClick={() => patch({ audience: 'agents', page: null })}
-        >
-          <span>
-            <span>{copy.agents}</span>
-          </span>
-        </button>
-      </section>
-
-      {audience === 'agents' ? <AgentsWorkspace /> : null}
-
-      {audience === 'all' ? (
-      <>
       <div className="crm-people-sticky">
         <section className="crm-people-summary" aria-label={copy.title}>
           {TABS.map((item) => {
@@ -476,16 +455,33 @@ export function PeopleWorkspace() {
             <Select
               label={copy.agreementProject}
               value={agreementProject}
-              onChange={(event) => patch({ project: event.target.value, page: null })}
+              onChange={(event) => patch({ project: event.target.value, phase: null, page: null })}
               data-testid="crm-people-filter-project"
             >
               <option value="">{copy.allProjects}</option>
-              {AGREEMENT_PROJECTS.map((project) => (
-                <option key={project.value} value={project.value}>
-                  {project.label}
-                </option>
-              ))}
+              {(membershipQuery.data ?? [])
+                .filter((project, index, all) => project.project_id && all.findIndex((item) => item.project_id === project.project_id) === index)
+                .map((project) => (
+                  <option key={project.project_id || project.label} value={project.project_id || ''}>
+                    {project.label}
+                  </option>
+                ))}
             </Select>
+            {phaseOptions.length > 0 ? (
+              <Select
+                label={copy.phase}
+                value={phaseId}
+                onChange={(event) => patch({ phase: event.target.value, page: null })}
+                data-testid="crm-people-filter-phase"
+              >
+                <option value="">{copy.allPhases}</option>
+                {phaseOptions.map((phase) => (
+                  <option key={phase.id} value={phase.id}>
+                    {phase.name}
+                  </option>
+                ))}
+              </Select>
+            ) : null}
             {tab === 'junk' ? (
               <Select
                 label={copy.junkReason}
@@ -691,8 +687,6 @@ export function PeopleWorkspace() {
           />
         ) : null}
       </div>
-      </>
-      ) : null}
     </div>
   );
 }

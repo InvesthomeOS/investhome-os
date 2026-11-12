@@ -191,6 +191,7 @@ class Project(Base):
     projected_roi: Mapped[Decimal | None] = mapped_column(Numeric(8, 4), nullable=True)
     projected_irr: Mapped[Decimal | None] = mapped_column(Numeric(8, 4), nullable=True)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="USD")
+    uses_phases: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     completion_percentage: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
     acquisition_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)

@@ -1,5 +1,7 @@
 import { apiFetch } from '@/lib/api/client';
 
+export { contractedProfitInput } from '@/lib/api/contracted-profit.mjs';
+
 export const ACCOUNT_TYPES = [
   'operating',
   'project',
@@ -303,6 +305,7 @@ export interface FundingCommitment {
   investor_id: string;
   commitment_type: CommitmentType;
   committed_amount: string;
+  contracted_profit?: string | null;
   funded_amount: string | null;
   remaining_amount: string | null;
   currency: string;
@@ -316,6 +319,17 @@ export interface FundingCommitment {
   updated_at: string;
   project_name: string | null;
   investor_name: string | null;
+}
+
+export interface FundingCommitmentInput {
+  project_id: string;
+  investor_id: string;
+  commitment_type: CommitmentType;
+  committed_amount: string;
+  contracted_profit?: string | null;
+  currency?: string;
+  status?: CommitmentStatus;
+  notes?: string | null;
 }
 
 export interface FundingCommitmentListResponse {
@@ -535,6 +549,25 @@ export async function fetchFundingCommitments(
   return apiFetch<FundingCommitmentListResponse>(
     `/finance/funding-commitments${buildFundingQuery(filters)}`,
   );
+}
+
+export async function createFundingCommitment(
+  input: FundingCommitmentInput,
+): Promise<FundingCommitment> {
+  return apiFetch<FundingCommitment>('/finance/funding-commitments', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateFundingCommitment(
+  id: string,
+  input: Partial<FundingCommitmentInput>,
+): Promise<FundingCommitment> {
+  return apiFetch<FundingCommitment>(`/finance/funding-commitments/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
 }
 
 export async function fetchPaymentObligations(

@@ -27,6 +27,9 @@ class CrmAgreementSummary(BaseModel):
     status: CrmAgreementStatus
     agreement_date: date | None = None
     unit_number: str | None = None
+    phase_id: UUID | None = None
+    phase_name: str | None = None
+    unit_display: str | None = None
     investment_amount: str | None = None
     contact_email: str | None = None
     contact_phone: str | None = None
@@ -37,6 +40,7 @@ class CrmAgreementSummary(BaseModel):
     owners_label: str | None = None
     bitrix_deal_id: str | None = None
     amount_label: str | None = None
+    currency: str | None = None
     stage_label: str | None = None
     hemen_kira: bool = False
     responsible_name: str | None = None
@@ -132,6 +136,10 @@ class CrmPurchaseCard(BaseModel):
     project_group: str
     project_label: str
     unit_number: str | None = None
+    phase_id: UUID | None = None
+    phase_name: str | None = None
+    inventory_asset_id: UUID | None = None
+    unit_display: str | None = None
     amount: str | None = None
     currency: str | None = None
     amount_label: str | None = None
@@ -161,6 +169,11 @@ class CrmPurchaseCard(BaseModel):
     extra_fields: list[CrmLabeledValue] = Field(default_factory=list)
     hemen_kira: bool = False
     unit_history: list[CrmUnitHistoryStep] = Field(default_factory=list)
+    cancelled_at: datetime | None = None
+    cancellation_reason: str | None = None
+    cancellation_note: str | None = None
+    pipeline_return_stage: str | None = None
+    pipeline_returned_at: datetime | None = None
 
 
 class CrmAgreementPatch(BaseModel):
@@ -169,7 +182,9 @@ class CrmAgreementPatch(BaseModel):
 
 
 class CrmAgreementUnitChange(BaseModel):
-    unit_number: str = Field(min_length=1, max_length=40)
+    unit_number: str = Field(min_length=1, max_length=80)
+    phase_id: UUID | None = None
+    inventory_asset_id: UUID | None = None
 
 
 class CrmAgreementOwnerAdd(BaseModel):

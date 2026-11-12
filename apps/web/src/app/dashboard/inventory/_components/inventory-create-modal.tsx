@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { Button, Dialog, Select } from '@investhome/ui';
 
@@ -11,6 +11,7 @@ import {
   type InventoryAsset,
   type InventoryAssetInput,
 } from '@/lib/api/inventory';
+import { fetchProjectPhases, type ProjectPhaseRecord } from '@/lib/api/project-phases';
 import type { Project } from '@/lib/api/projects';
 import { useInventoryLabels } from '@/lib/i18n/inventory-labels';
 
@@ -30,6 +31,7 @@ interface InventoryCreateModalProps {
 
 const EMPTY_FORM: InventoryAssetInput = {
   project_id: '',
+  phase_id: null,
   building_id: null,
   floor_id: null,
   display_id: '',
@@ -66,6 +68,8 @@ export function InventoryCreateModal({
   onBuildingChange,
 }: InventoryCreateModalProps) {
   const t = useTranslations('inventory');
+  const locale = useLocale();
+  const [phases, setPhases] = useState<ProjectPhaseRecord[]>([]);
   const tCommon = useTranslations('common');
   const { assetTypeOptions, usageTypeOptions } = useInventoryLabels();
   const [form, setForm] = useState<InventoryAssetInput>(EMPTY_FORM);
@@ -74,6 +78,7 @@ export function InventoryCreateModal({
     if (mode === 'edit' && asset) {
       setForm({
         project_id: asset.project_id,
+        phase_id: asset.phase_id ?? null,
         building_id: asset.building_id,
         floor_id: asset.floor_id,
         display_id: asset.display_id,
@@ -103,6 +108,24 @@ export function InventoryCreateModal({
       setForm(EMPTY_FORM);
     }
   }, [asset, mode, onBuildingChange, onProjectChange]);
+
+  useEffect(() => {
+    if (!form.project_id) {
+      setPhases([]);
+      return;
+    }
+    let cancelled = false;
+    void fetchProjectPhases(form.project_id)
+      .then((items) => {
+        if (!cancelled) setPhases(items);
+      })
+      .catch(() => {
+        if (!cancelled) setPhases([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [form.project_id]);
 
   const projectOptions = useMemo(
     () => projects.map((p) => ({ value: p.id, label: p.project_name })),
@@ -176,6 +199,7 @@ export function InventoryCreateModal({
             setForm((current) => ({
               ...current,
               project_id: projectId,
+              phase_id: null,
               building_id: null,
               floor_id: null,
             }));
@@ -189,6 +213,23 @@ export function InventoryCreateModal({
             </option>
           ))}
         </Select>
+
+        {phases.length ? (
+          <Select
+            label={locale === 'tr' ? 'Faz' : 'Phase'}
+            value={form.phase_id ?? ''}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, phase_id: event.target.value || null }))
+            }
+          >
+            <option value="">{locale === 'tr' ? 'Faz seçin' : 'Select phase'}</option>
+            {phases.map((phase) => (
+              <option key={phase.id} value={phase.id}>
+                {phase.name}
+              </option>
+            ))}
+          </Select>
+        ) : null}
 
         <label className="ih-field">
           <span className="ih-field__label">{t('form.displayId')}</span>

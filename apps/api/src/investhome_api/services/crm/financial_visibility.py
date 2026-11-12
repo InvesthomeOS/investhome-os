@@ -24,6 +24,7 @@ def can_view_crm_financial(user: User | None) -> bool:
 def strip_agreement_summary(item: CrmAgreementSummary) -> CrmAgreementSummary:
     item.investment_amount = None
     item.amount_label = None
+    item.currency = None
     item.deposit_amount = None
     item.payment_dates = None
     item.share_ratio = None

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import {
   Button,
@@ -45,7 +45,10 @@ import {
   type MetricValue,
   type ProjectFinancialsResponse,
 } from '@/lib/api/projects';
+import { fetchProjectPhases } from '@/lib/api/project-phases';
 import { useProjectLabels } from '@/lib/i18n/project-labels';
+import { ProjectPhaseEditor } from '../project-phase-editor';
+import { canViewProjectFinancials } from '@/lib/projects/projects-permissions';
 import { createLocationRefreshController } from '@/lib/projects/location-refresh-action';
 import { collectLinkedProjectMedia } from '@/lib/projects/project-gallery-media';
 
@@ -182,6 +185,9 @@ export function ProjectsDetailDsWorkspace({
   const tDs = useTranslations('projects.ds');
   const locale = useLocale();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const phaseId = searchParams.get('phase') ?? '';
   const { user } = useAuth();
   const {
     getStatusLabel,
@@ -201,6 +207,14 @@ export function ProjectsDetailDsWorkspace({
   const [activity, setActivity] = useState<ProjectActivityItem[]>([]);
   const [alerts, setAlerts] = useState<ProjectAlertItem[]>([]);
   const [financials, setFinancials] = useState<ProjectFinancialsResponse | null>(null);
+  const [financialsLoading, setFinancialsLoading] = useState(false);
+  const [financialsError, setFinancialsError] = useState(false);
+  const [financeAudience, setFinanceAudience] = useState<'internal' | 'customer'>('internal');
+  const [projectPhases, setProjectPhases] = useState<Array<{ id: string; name: string }>>([]);
+  const usesPhases = project?.uses_phases === true;
+  const phaseFilter = usesPhases ? phaseId : '';
+  const shownTab = resolvedTab === 'phases' && !usesPhases ? 'overview' : resolvedTab;
+  const [unitSummary, setUnitSummary] = useState<Record<string, MetricValue> | null>(null);
   const [investorCount, setInvestorCount] = useState<number | null>(null);
   const [investorItems, setInvestorItems] = useState<Array<Record<string, unknown>>>([]);
   const [locationIntel, setLocationIntel] = useState<LocationIntelligenceResponse | null>(null);
@@ -268,27 +282,90 @@ export function ProjectsDetailDsWorkspace({
     void Promise.all([
       fetchProjectDetailActivity(projectId, { page: 1, page_size: 20 }),
       fetchProjectAlerts(projectId),
-      fetchProjectFinancials(projectId).catch(() => null),
-      fetchProjectInvestors(projectId).catch(() => null),
-    ]).then(([activityPage, alertPage, finance, investors]) => {
+      fetchProjectInvestors(projectId, phaseFilter || undefined).catch(() => null),
+    ]).then(([activityPage, alertPage, investors]) => {
       if (cancelled) return;
       setActivity(activityPage.items);
       setAlerts(alertPage.items);
-      setFinancials(finance);
       setInvestorItems(investors?.items ?? []);
       setInvestorCount(investors ? investors.total : null);
     }).catch(() => {
       if (cancelled) return;
       setActivity([]);
       setAlerts([]);
-      setFinancials(null);
       setInvestorItems([]);
       setInvestorCount(null);
     });
     return () => {
       cancelled = true;
     };
+  }, [canView, phaseFilter, projectId]);
+
+  useEffect(() => {
+    if (!canView) return;
+    let cancelled = false;
+    void fetchProjectPhases(projectId)
+      .then((items) => {
+        if (!cancelled) {
+          setProjectPhases(items.filter((item) => item.active).map((item) => ({ id: item.id, name: item.name })));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setProjectPhases([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [canView, projectId]);
+
+  useEffect(() => {
+    if (!canView) return;
+    let cancelled = false;
+    void fetchProjectUnits(projectId, {
+      page: 1,
+      page_size: 1,
+      ...(phaseFilter ? { phase_id: phaseFilter } : {}),
+    })
+      .then((page) => {
+        if (!cancelled) setUnitSummary(page.summary as Record<string, MetricValue>);
+      })
+      .catch(() => {
+        if (!cancelled) setUnitSummary(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [canView, phaseFilter, projectId]);
+
+  const canViewFinancials = canViewProjectFinancials(user);
+
+  useEffect(() => {
+    if (!canView || !canViewFinancials) {
+      setFinancials(null);
+      setFinancialsError(false);
+      setFinancialsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setFinancialsLoading(true);
+    setFinancialsError(false);
+    void fetchProjectFinancials(projectId, financeAudience, phaseFilter || undefined)
+      .then((finance) => {
+        if (!cancelled) setFinancials(finance);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFinancials(null);
+          setFinancialsError(true);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setFinancialsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [canView, canViewFinancials, financeAudience, phaseFilter, projectId]);
 
   useEffect(() => {
     if (!canView) return;
@@ -385,17 +462,27 @@ export function ProjectsDetailDsWorkspace({
 
   const tabItems = useMemo(
     () =>
-      PROJECT_DETAIL_NAV_TABS.map((id) => ({
+      PROJECT_DETAIL_NAV_TABS.filter((id) => id !== 'phases' || usesPhases).map((id) => ({
         id,
         label: tD(`tabs.${id}`),
       })),
-    [tD],
+    [tD, usesPhases],
   );
 
   const onTabChange = (id: string) => {
     const next = resolveProjectDetailDsTab(id);
     if (!next) return;
-    router.push(projectDetailDsHref(projectId, next) as Route);
+    const params = new URLSearchParams(searchParams.toString());
+    const query = params.toString();
+    router.push(`${projectDetailDsHref(projectId, next)}${query ? `?${query}` : ''}` as Route);
+  };
+
+  const onPhaseChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) params.set('phase', value);
+    else params.delete('phase');
+    const query = params.toString();
+    router.replace(`${pathname}${query ? `?${query}` : ''}` as Route);
   };
 
   if (!canView) {
@@ -573,10 +660,25 @@ export function ProjectsDetailDsWorkspace({
       </section>
 
       <div className="proj-detail-ds__tabs-bar">
+        {usesPhases && projectPhases.length ? (
+          <Select
+            className="proj-detail-ds__phase-filter"
+            label={locale === 'tr' ? 'Faz' : 'Phase'}
+            value={phaseId}
+            onChange={(event) => onPhaseChange(event.target.value)}
+          >
+            <option value="">{locale === 'tr' ? 'Tüm Proje' : 'Entire Project'}</option>
+            {projectPhases.map((phase) => (
+              <option key={phase.id} value={phase.id}>
+                {phase.name}
+              </option>
+            ))}
+          </Select>
+        ) : null}
         <Tabs
           className="proj-detail-ds__tabs"
           tabs={tabItems}
-          activeId={resolvedTab === 'timeline' ? 'tasks' : resolvedTab}
+          activeId={shownTab === 'timeline' ? 'tasks' : shownTab}
           onChange={onTabChange}
           ariaLabel={tD('tabs.aria')}
         />
@@ -584,13 +686,15 @@ export function ProjectsDetailDsWorkspace({
           <Select
             className="proj-detail-ds__tabs-select"
             label={tD('tabs.aria')}
-            value={resolvedTab === 'timeline' ? 'tasks' : resolvedTab}
+            value={shownTab === 'timeline' ? 'tasks' : shownTab}
             onChange={(e) => onTabChange(e.target.value)}
           >
             {(resolvedTab === 'reports' || resolvedTab === 'ai-insights'
               ? [...PROJECT_DETAIL_NAV_TABS, resolvedTab]
               : [...PROJECT_DETAIL_NAV_TABS]
-            ).map((id) => (
+            )
+              .filter((id) => id !== 'phases' || usesPhases)
+              .map((id) => (
               <option key={id} value={id}>
                 {tD(`tabs.${id}`)}
               </option>
@@ -601,7 +705,7 @@ export function ProjectsDetailDsWorkspace({
 
       {error ? <div className="proj-detail-ds__banner">{error}</div> : null}
 
-      {resolvedTab === 'overview' ? (
+      {shownTab === 'overview' ? (
         <OverviewTab
           model={model}
           tD={tD}
@@ -616,14 +720,27 @@ export function ProjectsDetailDsWorkspace({
           refreshState={refreshState}
           refreshError={refreshError}
           onRefreshLocation={refreshLocation}
+          phaseMetrics={{ units: unitSummary, finance: financials?.summary ?? null }}
         />
       ) : null}
       {resolvedTab === 'construction' ? (
         <ConstructionTab model={model} tD={tD} locale={locale} />
       ) : null}
-      {resolvedTab === 'units' ? <UnitsTab projectId={projectId} tD={tD} locale={locale} /> : null}
+      {resolvedTab === 'units' ? (
+        <UnitsTab projectId={projectId} tD={tD} locale={locale} phaseScope={usesPhases ? phaseId : ''} usesPhases={usesPhases} />
+      ) : null}
+      {shownTab === 'phases' ? <ProjectPhaseEditor projectId={projectId} /> : null}
       {resolvedTab === 'financial' ? (
-        <FinancialTab model={model} tD={tD} locale={locale} />
+        <FinancialTab
+          summary={financeSummary}
+          showInvestorTerms={canViewFinancials}
+          loading={financialsLoading}
+          error={financialsError}
+          audience={financeAudience}
+          onAudience={setFinanceAudience}
+          tD={tD}
+          locale={locale}
+        />
       ) : null}
       {resolvedTab === 'investors' ? (
         <InvestorsTab items={investorItems} tD={tD} locale={locale} />
@@ -698,6 +815,7 @@ function OverviewTab({
   refreshState,
   refreshError,
   onRefreshLocation,
+  phaseMetrics,
 }: {
   model: Model;
   tD: TranslateFn;
@@ -712,6 +830,10 @@ function OverviewTab({
   refreshState: string | null;
   refreshError: string | null;
   onRefreshLocation: () => void;
+  phaseMetrics?: {
+    units: Record<string, MetricValue> | null;
+    finance: Record<string, MetricValue> | null;
+  };
 }) {
   const realAlerts = alerts.filter((item) => missingDataNoticeKey(item.title) == null);
   const missingDetails = alerts.filter((item) => missingDataNoticeKey(item.title) != null);
@@ -722,6 +844,26 @@ function OverviewTab({
   const otherAlerts = realAlerts.filter(
     (item) => item.category !== 'budget' && item.category !== 'construction' && item.category !== 'schedule',
   );
+  const tr = locale === 'tr';
+  const shown = (metric: MetricValue | undefined) =>
+    metric && metric.available && metric.value !== null && metric.value !== undefined
+      ? String(metric.value)
+      : '—';
+  const phaseCards: Array<[string, string]> = [
+    [tr ? 'Toplam ünite' : 'Total units', shown(phaseMetrics?.units?.total_units)],
+    ['Available', shown(phaseMetrics?.units?.available)],
+    ['Reserved', shown(phaseMetrics?.units?.reserved)],
+    ['Under Contract', shown(phaseMetrics?.units?.under_contract)],
+    ['Closed', shown(phaseMetrics?.units?.sold)],
+    [tr ? 'Toplam liste değeri' : 'Total list value', shown(phaseMetrics?.units?.total_list_value)],
+    [tr ? 'Sözleşmeli satış değeri' : 'Contracted sales value', shown(phaseMetrics?.finance?.contracted_sales_value)],
+    [tr ? 'Gerçekleşen tahsilat' : 'Realized collections', shown(phaseMetrics?.finance?.verified_collections)],
+    [tr ? 'Kalan alacak' : 'Remaining receivable', shown(phaseMetrics?.finance?.remaining_receivable)],
+    [tr ? 'Yatırımcı sermayesi' : 'Investor capital', shown(phaseMetrics?.finance?.investor_committed_capital)],
+    [tr ? 'Yatırımcı sözleşmeli kârı' : 'Investor contracted profit', shown(phaseMetrics?.finance?.investor_contracted_profit)],
+    [tr ? 'İç proje kâr tahmini' : 'Internal project profit estimate', shown(phaseMetrics?.finance?.total_project_profit)],
+    [tr ? 'Investhome kalan kâr tahmini' : 'Investhome remaining profit estimate', shown(phaseMetrics?.finance?.investhome_estimated_profit)],
+  ];
   return (
     <>
       <ProjectsDetailDigitalTwin
@@ -734,6 +876,11 @@ function OverviewTab({
         refreshState={refreshState}
         refreshError={refreshError}
       />
+      <section className="proj-detail-ds__kpi-row" aria-label={tr ? 'Faz özeti' : 'Phase summary'} data-testid="project-phase-kpis">
+        {phaseCards.map(([label, value]) => (
+          <KpiCard key={label} className="proj-detail-ds__kpi" label={label} value={value} />
+        ))}
+      </section>
       <div className="proj-detail-ds__overview">
         <div className="proj-detail-ds__overview-main">
           <article className="proj-detail-ds__panel">
@@ -954,6 +1101,11 @@ type LiveUnit = {
   sales_market?: string | null;
   price?: string | number | null;
   price_available?: boolean;
+  sale_amount?: string | number | null;
+  sale_amount_available?: boolean;
+  collected_amount?: string | number | null;
+  collected_available?: boolean;
+  payment_plan?: string | null;
 };
 
 type SalesMarketFilter = 'all' | 'turkey' | 'usa';
@@ -1000,14 +1152,22 @@ function UnitsTab({
   projectId,
   tD,
   locale,
+  phaseScope,
+  usesPhases = false,
 }: {
   projectId: string;
   tD: TranslateFn;
   locale: string;
+  phaseScope?: string;
+  usesPhases?: boolean;
 }) {
   const [units, setUnits] = useState<LiveUnit[]>([]);
   const [summary, setSummary] = useState<Record<string, MetricValue> | null>(null);
   const [market, setMarket] = useState<SalesMarketFilter>('all');
+  const [phaseId, setPhaseId] = useState('');
+  const [phases, setPhases] = useState<Array<{ id: string; name: string }>>([]);
+  const controlled = phaseScope !== undefined;
+  const scopedPhase = controlled ? phaseScope : phaseId;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -1022,6 +1182,7 @@ function UnitsTab({
           sort_by: 'display_id' as const,
           sort_order: 'asc' as const,
           ...(market === 'all' ? {} : { sales_market: market }),
+          ...(scopedPhase ? { phase_id: scopedPhase } : {}),
         };
         const first = await fetchProjectUnits(projectId, { ...params, page: 1 });
         let items = [...first.items] as LiveUnit[];
@@ -1047,7 +1208,21 @@ function UnitsTab({
     return () => {
       cancelled = true;
     };
-  }, [market, projectId, tD]);
+  }, [market, projectId, scopedPhase, tD]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchProjectPhases(projectId)
+      .then((items) => {
+        if (!cancelled) setPhases(items.filter((item) => item.active).map((item) => ({ id: item.id, name: item.name })));
+      })
+      .catch(() => {
+        if (!cancelled) setPhases([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
 
   const counts = {
     total: metricCount(summary, 'total_physical_units'),
@@ -1056,7 +1231,6 @@ function UnitsTab({
     sold: metricCount(summary, 'sold_units'),
     available: metricCount(summary, 'available_for_sale'),
   };
-  const physicalTotal = counts.total ?? 0;
 
   return (
     <section className="proj-detail-ds__units" aria-label={tD('units.aria')} data-testid="project-units-live">
@@ -1077,6 +1251,20 @@ function UnitsTab({
             </div>
           ))}
         </div>
+        {usesPhases && !controlled && phases.length ? (
+          <Select
+            label={locale === 'tr' ? 'Faz' : 'Phase'}
+            value={scopedPhase}
+            onChange={(event) => setPhaseId(event.target.value)}
+          >
+            <option value="">{locale === 'tr' ? 'Tüm Proje' : 'Entire Project'}</option>
+            {phases.map((phase) => (
+              <option key={phase.id} value={phase.id}>
+                {phase.name}
+              </option>
+            ))}
+          </Select>
+        ) : null}
         <div className="proj-detail-ds__work-views" role="tablist" aria-label={tD('units.marketFilter')}>
           {(['all', 'turkey', 'usa'] as const).map((value) => (
             <button
@@ -1095,8 +1283,15 @@ function UnitsTab({
       {loading ? <p className="proj-detail-ds__quiet">{tD('units.loading')}</p> : null}
       {error ? <p className="proj-detail-ds__banner">{error}</p> : null}
       {!loading && !error && units.length === 0 ? (
-        <p className="proj-detail-ds__quiet">
-          {physicalTotal > 0 ? tD('units.marketEmpty') : tD('empty.short')}
+        <p
+          className="proj-detail-ds__quiet"
+          data-testid={scopedPhase && market === 'all' ? 'project-units-phase-empty' : undefined}
+        >
+          {market !== 'all'
+            ? tD('units.marketEmpty')
+            : scopedPhase
+              ? tD('units.phaseEmpty')
+              : tD('units.empty')}
         </p>
       ) : null}
       {units.map((unit) => {
@@ -1144,6 +1339,26 @@ function UnitsTab({
                   {unit.price_available ? formatListPrice(unit.price, locale) : tD('units.priceUnavailable')}
                 </strong>
               </div>
+              <div>
+                <span>{tD('units.contracted')}</span>
+                <strong>
+                  {unit.sale_amount_available
+                    ? formatListPrice(unit.sale_amount, locale)
+                    : '—'}
+                </strong>
+              </div>
+              <div>
+                <span>{tD('units.collected')}</span>
+                <strong>
+                  {unit.collected_available
+                    ? formatListPrice(unit.collected_amount, locale)
+                    : '—'}
+                </strong>
+              </div>
+              <div>
+                <span>{tD('units.paymentPlan')}</span>
+                <strong>{unit.payment_plan || '—'}</strong>
+              </div>
             </div>
           </article>
         );
@@ -1153,55 +1368,89 @@ function UnitsTab({
 }
 
 function FinancialTab({
-  model,
+  summary,
+  showInvestorTerms,
+  loading,
+  error,
+  audience,
+  onAudience,
   tD,
   locale,
 }: {
-  model: Model;
+  summary: Record<string, MetricValue> | null;
+  showInvestorTerms: boolean;
+  loading: boolean;
+  error: boolean;
+  audience: 'internal' | 'customer';
+  onAudience: (audience: 'internal' | 'customer') => void;
   tD: TranslateFn;
   locale: string;
 }) {
-  const f = model.financial;
-  const money = (value: number | null) =>
-    value == null ? '—' : formatCompactCurrency(value, locale);
-  const metrics: Array<{ key: string; value: string }> = [
-    { key: 'budget', value: money(f.budget) },
-    { key: 'spent', value: money(f.spent) },
-    { key: 'remaining', value: money(f.remaining) },
-    { key: 'forecast', value: money(f.forecast) },
-    { key: 'loan', value: money(f.loan) },
-    { key: 'cashFlow', value: money(f.cashFlow) },
-    { key: 'roi', value: f.roi == null ? '—' : `${f.roi.toFixed(1)}%` },
-    { key: 'profit', value: money(f.profit) },
-    { key: 'revenue', value: money(f.revenue) },
-    { key: 'expenses', value: money(f.expenses) },
+  const sources: Array<[string, string]> = [
+    ['budget', 'total_project_cost'],
+    ['estimatedCost', 'estimated_cost'],
+    ['actualCost', 'actual_cost'],
+    ['remainingBudget', 'remaining_budget'],
+    ['financing', 'financing'],
+    ['profitability', 'total_project_profit'],
   ];
+  if (audience === 'internal') {
+    sources.push(
+      ['contractedSales', 'contracted_sales_value'],
+      ['collections', 'verified_collections'],
+      ['receivable', 'remaining_receivable'],
+      ['commission', 'commission_amount'],
+      ['commissionPaid', 'commission_paid'],
+      ['commissionRemaining', 'commission_remaining'],
+    );
+  }
+  if (showInvestorTerms) {
+    sources.push(
+      ['investorCapital', 'investor_committed_capital'],
+      ['investorProfit', 'investor_contracted_profit'],
+      ['investorReturn', 'investor_total_return'],
+      ['investhomeProfit', 'investhome_estimated_profit'],
+    );
+  }
+  const metrics: Array<{ key: string; value: string }> = sources.map(([key, source]) => ({
+    key,
+    value: metricText(summary?.[source], locale) ?? '—',
+  }));
 
   return (
-    <div style={{ display: 'grid', gap: 12 }}>
+    <div data-testid="project-finance-tab">
+      {showInvestorTerms ? (
+        <div className="proj-detail-ds__work-views" role="tablist" aria-label={tD('financial.aria')}>
+          <button
+            type="button"
+            className="proj-detail-ds__work-view"
+            aria-pressed={audience === 'internal'}
+            onClick={() => onAudience('internal')}
+          >
+            {tD('financial.metrics.audienceInternal')}
+          </button>
+          <button
+            type="button"
+            className="proj-detail-ds__work-view"
+            aria-pressed={audience === 'customer'}
+            onClick={() => onAudience('customer')}
+          >
+            {tD('financial.metrics.audienceCustomer')}
+          </button>
+        </div>
+      ) : (
+        <p className="proj-detail-ds__quiet">{tD('financial.metrics.restricted')}</p>
+      )}
+      {loading ? <p className="proj-detail-ds__quiet">{tD('financial.metrics.loading')}</p> : null}
+      {error ? <div className="proj-detail-ds__banner">{tD('financial.metrics.loadError')}</div> : null}
       <section className="proj-detail-ds__fin-grid" aria-label={tD('financial.aria')}>
         {metrics.map((m) => (
-          <article key={m.key} className="proj-detail-ds__fin-metric">
+          <article key={m.key} className="proj-detail-ds__fin-metric" data-testid={`project-finance-${m.key}`}>
             <span>{tD(`financial.metrics.${m.key}`)}</span>
             <strong>{m.value}</strong>
           </article>
         ))}
       </section>
-      <article className="proj-detail-ds__panel proj-detail-ds__chart">
-        <h3>{tD('financial.cashFlowChart')}</h3>
-        <p className="proj-detail-ds__panel-sub">{tD('financial.cashFlowHint')}</p>
-        {f.series.length === 0 ? (
-          <p className="proj-detail-ds__quiet">{tD('empty.short')}</p>
-        ) : (
-          <div className="proj-detail-ds__bars" aria-hidden="true">
-            {f.series.map((value, i) => (
-              <div key={i} className="proj-detail-ds__bar">
-                <i style={{ height: `${value}%` }} />
-              </div>
-            ))}
-          </div>
-        )}
-      </article>
     </div>
   );
 }
@@ -1237,6 +1486,10 @@ function InvestorsTab({
             const id = String(inv.commitment_id ?? inv.investor_id ?? inv.investor_name);
             const name = typeof inv.investor_name === 'string' ? inv.investor_name : '—';
             const committed = typeof inv.committed_amount === 'number' ? inv.committed_amount : null;
+            const contracted =
+              typeof inv.contracted_profit === 'number' || typeof inv.contracted_profit === 'string'
+                ? Number(inv.contracted_profit)
+                : null;
             const status = typeof inv.status === 'string' ? inv.status : null;
             const last = typeof inv.last_activity === 'string' ? inv.last_activity : null;
             return (
@@ -1248,7 +1501,11 @@ function InvestorsTab({
                 </td>
                 <td>{committed == null ? '—' : formatCompactCurrency(committed, locale)}</td>
                 <td>—</td>
-                <td>—</td>
+                <td>
+                  {contracted == null || Number.isNaN(contracted)
+                    ? '—'
+                    : formatCompactCurrency(contracted, locale)}
+                </td>
                 <td>{status ?? '—'}</td>
                 <td>—</td>
                 <td>{formatShortDate(last, locale)}</td>

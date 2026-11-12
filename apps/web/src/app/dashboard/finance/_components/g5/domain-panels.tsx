@@ -1,12 +1,18 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 
 import { BarChart, LineChart, Sparkline } from '@/components/design-system/charts';
 import type { ApprovalItem } from '@/lib/api/executive';
 import {
+  COMMITMENT_STATUSES,
+  COMMITMENT_TYPES,
+  createFundingCommitment,
   formatMoney,
   formatShortDate,
+  updateFundingCommitment,
+  type CommitmentStatus,
+  type CommitmentType,
   type FinanceStats,
   type FinanceTransaction,
   type FinancialAccount,
@@ -14,6 +20,7 @@ import {
   type PaymentObligation,
   type ProjectBudget,
 } from '@/lib/api/finance';
+import { contractedProfitInput } from '@/lib/api/contracted-profit.mjs';
 import { fetchDocuments, type Document } from '@/lib/api/documents';
 import { fetchEntityActivity, type ActivityLogEntry } from '@/lib/api/activity';
 
@@ -472,14 +479,265 @@ export function OutgoingWiresPanel({
   );
 }
 
+function CommitmentLedger({
+  commitments,
+  locale,
+  labels,
+  canCreate,
+  canUpdate,
+  projectOptions,
+  investorOptions,
+  onChanged,
+}: CommonLabels & {
+  commitments: FundingCommitment[];
+  canCreate: boolean;
+  canUpdate: boolean;
+  projectOptions: { id: string; label: string }[];
+  investorOptions: { id: string; label: string }[];
+  onChanged: () => void;
+}) {
+  const [profitDrafts, setProfitDrafts] = useState<Record<string, string>>({});
+  const [rowError, setRowError] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [draft, setDraft] = useState({
+    project_id: '',
+    investor_id: '',
+    commitment_type: 'equity' as CommitmentType,
+    committed_amount: '',
+    contracted_profit: '',
+    currency: 'USD',
+    status: 'committed' as CommitmentStatus,
+  });
+
+  const saveProfit = async (row: FundingCommitment) => {
+    setRowError(null);
+    let profit: string | null;
+    try {
+      profit = contractedProfitInput(profitDrafts[row.id] ?? row.contracted_profit ?? '');
+    } catch {
+      setRowError(lab(labels, 'contractedProfitInvalid'));
+      return;
+    }
+    setSavingId(row.id);
+    try {
+      await updateFundingCommitment(row.id, { contracted_profit: profit });
+      onChanged();
+    } catch {
+      setRowError(lab(labels, 'commitmentSaveError'));
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const createRow = async (event: FormEvent) => {
+    event.preventDefault();
+    setCreateError(null);
+    let profit: string | null;
+    try {
+      profit = contractedProfitInput(draft.contracted_profit);
+    } catch {
+      setCreateError(lab(labels, 'contractedProfitInvalid'));
+      return;
+    }
+    setCreating(true);
+    try {
+      await createFundingCommitment({
+        project_id: draft.project_id,
+        investor_id: draft.investor_id,
+        commitment_type: draft.commitment_type,
+        committed_amount: draft.committed_amount,
+        currency: draft.currency,
+        status: draft.status,
+        ...(profit === null ? {} : { contracted_profit: profit }),
+      });
+      setDraft((current) => ({ ...current, committed_amount: '', contracted_profit: '' }));
+      onChanged();
+    } catch {
+      setCreateError(lab(labels, 'commitmentSaveError'));
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div data-testid="funding-commitment-ledger">
+      <h4>{lab(labels, 'commitmentLedgerTitle')}</h4>
+      <p>{lab(labels, 'contractedProfitHint')}</p>
+      {canCreate ? (
+        <form className="leads-form" onSubmit={createRow} data-testid="funding-commitment-create">
+          <div className="leads-form__grid">
+            <label className="leads__field">
+              <span>{lab(labels, 'colProject')}</span>
+              <select
+                required
+                value={draft.project_id}
+                onChange={(event) => setDraft((current) => ({ ...current, project_id: event.target.value }))}
+              >
+                <option value="">{lab(labels, 'selectProject')}</option>
+                {projectOptions.map((option) => (
+                  <option key={option.id} value={option.id}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="leads__field">
+              <span>{lab(labels, 'colInvestor')}</span>
+              <select
+                required
+                value={draft.investor_id}
+                onChange={(event) => setDraft((current) => ({ ...current, investor_id: event.target.value }))}
+              >
+                <option value="">{lab(labels, 'selectInvestor')}</option>
+                {investorOptions.map((option) => (
+                  <option key={option.id} value={option.id}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="leads__field">
+              <span>{lab(labels, 'colType')}</span>
+              <select
+                value={draft.commitment_type}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, commitment_type: event.target.value as CommitmentType }))
+                }
+              >
+                {COMMITMENT_TYPES.map((value) => (
+                  <option key={value} value={value}>{value}</option>
+                ))}
+              </select>
+            </label>
+            <label className="leads__field">
+              <span>{lab(labels, 'committedAmount')}</span>
+              <input
+                required
+                inputMode="decimal"
+                value={draft.committed_amount}
+                onChange={(event) => setDraft((current) => ({ ...current, committed_amount: event.target.value }))}
+              />
+            </label>
+            <label className="leads__field">
+              <span>{lab(labels, 'contractedProfit')}</span>
+              <input
+                data-testid="funding-commitment-profit-create"
+                inputMode="decimal"
+                placeholder={lab(labels, 'contractedProfitBlank')}
+                value={draft.contracted_profit}
+                onChange={(event) => setDraft((current) => ({ ...current, contracted_profit: event.target.value }))}
+              />
+            </label>
+            <label className="leads__field">
+              <span>{lab(labels, 'colCurrency')}</span>
+              <input
+                value={draft.currency}
+                maxLength={3}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, currency: event.target.value.toUpperCase() }))
+                }
+              />
+            </label>
+            <label className="leads__field">
+              <span>{lab(labels, 'colStatus')}</span>
+              <select
+                value={draft.status}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, status: event.target.value as CommitmentStatus }))
+                }
+              >
+                {COMMITMENT_STATUSES.map((value) => (
+                  <option key={value} value={value}>{value}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          {createError ? <p className="fin-g5__banner">{createError}</p> : null}
+          <button type="submit" className="fin-g5__btn fin-g5__btn--primary" disabled={creating}>
+            {lab(labels, 'addCommitment')}
+          </button>
+        </form>
+      ) : null}
+      <div className="fin-g5__list-wrap">
+        <table className="fin-g5__table">
+          <thead>
+            <tr>
+              <th>{lab(labels, 'colInvestor')}</th>
+              <th>{lab(labels, 'colProject')}</th>
+              <th>{lab(labels, 'committedAmount')}</th>
+              <th>{lab(labels, 'contractedProfit')}</th>
+              <th>{lab(labels, 'colStatus')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {commitments.length === 0 ? (
+              <tr>
+                <td colSpan={5}>{lab(labels, 'empty')}</td>
+              </tr>
+            ) : (
+              commitments.map((row) => {
+                const draftValue = profitDrafts[row.id] ?? (row.contracted_profit ?? '');
+                return (
+                  <tr key={row.id} data-testid="funding-commitment-row">
+                    <td>{row.investor_name || '—'}</td>
+                    <td>{row.project_name || '—'}</td>
+                    <td>{formatMoney(row.committed_amount, row.currency, locale)}</td>
+                    <td>
+                      {canUpdate ? (
+                        <span>
+                          <input
+                            data-testid="funding-commitment-profit-edit"
+                            aria-label={lab(labels, 'contractedProfit')}
+                            inputMode="decimal"
+                            value={draftValue}
+                            placeholder="—"
+                            onChange={(event) =>
+                              setProfitDrafts((current) => ({ ...current, [row.id]: event.target.value }))
+                            }
+                          />
+                          <span>{row.currency}</span>
+                          <button
+                            type="button"
+                            className="fin-g5__btn"
+                            disabled={savingId === row.id}
+                            onClick={() => void saveProfit(row)}
+                          >
+                            {lab(labels, 'saveCommitment')}
+                          </button>
+                        </span>
+                      ) : (
+                        formatMoney(row.contracted_profit, row.currency, locale)
+                      )}
+                    </td>
+                    <td>{row.status}</td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+      {rowError ? <p className="fin-g5__banner">{rowError}</p> : null}
+    </div>
+  );
+}
+
 export function InvestorPaymentsPanel({
   commitments,
   transactions,
   locale,
   labels,
+  canCreate = false,
+  canUpdate = false,
+  projectOptions = [],
+  investorOptions = [],
+  onCommitmentsChanged,
 }: CommonLabels & {
   commitments: FundingCommitment[];
   transactions: FinanceTransaction[];
+  canCreate?: boolean;
+  canUpdate?: boolean;
+  projectOptions?: { id: string; label: string }[];
+  investorOptions?: { id: string; label: string }[];
+  onCommitmentsChanged?: () => void;
 }) {
   const rows = useMemo(
     () => deriveInvestorPayments(commitments, transactions),
@@ -491,6 +749,16 @@ export function InvestorPaymentsPanel({
 
   return (
     <div className="fin-g5__panel" data-testid="fin-g5-investor-payments">
+      <CommitmentLedger
+        commitments={commitments}
+        locale={locale}
+        labels={labels}
+        canCreate={canCreate}
+        canUpdate={canUpdate}
+        projectOptions={projectOptions}
+        investorOptions={investorOptions}
+        onChanged={onCommitmentsChanged ?? (() => undefined)}
+      />
       <div className="fin-g5__toolbar">
         <div>
           <h3>{lab(labels, 'investorPayTitle')}</h3>

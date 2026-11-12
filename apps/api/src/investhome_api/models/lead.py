@@ -47,6 +47,15 @@ class Lead(Base):
     estimated_budget: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
     estimated_budget_currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
     interested_project: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
+    )
+    phase_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("project_phases.id", ondelete="SET NULL"), nullable=True
+    )
+    inventory_asset_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("inventory_assets.id", ondelete="SET NULL"), nullable=True
+    )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     junk_reason: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
     junk_reason_detail: Mapped[str | None] = mapped_column(String(500), nullable=True)

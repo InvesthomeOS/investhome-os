@@ -69,7 +69,7 @@ describe('detail navigation keeps routes and secondary access', () => {
   it('shows seven primary tabs and keeps legacy routes', () => {
     assert.match(
       detailModel,
-      /PROJECT_DETAIL_NAV_TABS = \[\s*'overview',\s*'units',\s*'investors',\s*'financial',\s*'construction',\s*'documents',\s*'tasks',\s*\]/,
+      /PROJECT_DETAIL_NAV_TABS = \[\s*'overview',\s*'units',\s*'phases',\s*'investors',\s*'financial',\s*'construction',\s*'documents',\s*'tasks',\s*\]/,
     );
     for (const route of ['timeline', 'reports', 'ai-insights']) {
       assert.match(detailModel, new RegExp(`'${route}'`));
@@ -96,7 +96,11 @@ describe('detail navigation keeps routes and secondary access', () => {
     assert.match(workspace, /data-testid="project-work-timeline"/);
     assert.match(workspace, /projectDetailDsHref\(projectId, 'tasks'\)/);
     assert.match(workspace, /projectDetailDsHref\(projectId, 'timeline'\)/);
-    assert.match(workspace, /PROJECT_DETAIL_NAV_TABS\.map\(\(id\) => \(\{/);
+    assert.match(workspace, /PROJECT_DETAIL_NAV_TABS\.filter\(\(id\) => id !== 'phases' \|\| usesPhases\)/);
+    assert.match(workspace, /const phaseFilter = usesPhases \? phaseId : ''/);
+    assert.match(workspace, /usesPhases && projectPhases\.length/);
+    assert.match(workspace, /usesPhases && !controlled && phases\.length/);
+    assert.match(workspace, /resolvedTab === 'phases' && !usesPhases \? 'overview' : resolvedTab/);
     const primaryNav = workspace.slice(
       workspace.indexOf('const tabItems'),
       workspace.indexOf('const onTabChange'),

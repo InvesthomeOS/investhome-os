@@ -72,7 +72,7 @@ def _unit_payload(**overrides: object) -> dict:
     return payload
 
 
-def test_repeated_unit_numbers_are_unique_per_building(client: TestClient) -> None:
+def test_repeated_unit_numbers_are_unique_within_the_project(client: TestClient) -> None:
     project = _create_project(client)
     historic = _create_building(client, project["id"], code="HIST", name="Historic")
     addition = _create_building(client, project["id"], code="ADD", name="Addition")
@@ -90,13 +90,25 @@ def test_repeated_unit_numbers_are_unique_per_building(client: TestClient) -> No
         ),
     )
     assert first.status_code == 201, first.text
-    second = client.post(
+    same_number_other_building = client.post(
         "/inventory/assets",
         json=_unit_payload(
             project_id=project["id"],
             building_id=addition["id"],
             floor_id=addition_floor["id"],
             display_id="201",
+            sales_market="usa",
+        ),
+    )
+    assert same_number_other_building.status_code == 409
+    assert same_number_other_building.json()["detail"] == "inventory.errors.display_id_duplicate"
+    second = client.post(
+        "/inventory/assets",
+        json=_unit_payload(
+            project_id=project["id"],
+            building_id=addition["id"],
+            floor_id=addition_floor["id"],
+            display_id="202",
             sales_market="usa",
             sales_status=InventorySalesStatus.SOLD.value,
             availability_status=AvailabilityStatus.UNAVAILABLE.value,
@@ -262,7 +274,7 @@ def test_project_units_include_building_label_and_market_counts(client: TestClie
             project_id=project["id"],
             building_id=addition["id"],
             floor_id=addition_floor["id"],
-            display_id="201",
+            display_id="202",
             sales_market="usa",
             sales_status=InventorySalesStatus.SOLD.value,
             availability_status=AvailabilityStatus.UNAVAILABLE.value,
@@ -273,7 +285,7 @@ def test_project_units_include_building_label_and_market_counts(client: TestClie
     assert listed.status_code == 200, listed.text
     body = listed.json()
     labels = {item["unit_label"] for item in body["items"]}
-    assert labels == {"Historic · 201", "Addition · 201"}
+    assert labels == {"Historic · 201", "Addition · 202"}
     assert {item["building_label"] for item in body["items"]} == {"Historic", "Addition"}
     summary = body["summary"]
     assert summary["total_physical_units"]["value"] == 2

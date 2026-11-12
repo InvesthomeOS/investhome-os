@@ -80,7 +80,7 @@ function cellText(row: CrmAgreementSummary, column: ColumnId): string {
     case 'musteri':
       return ownerList(row).map((item) => item.display_name).join(' + ');
     case 'projeDaire':
-      return [projectName(row), row.project_group === 'reit' ? null : row.unit_number].filter(Boolean).join(' · ');
+      return [projectName(row), row.project_group === 'reit' ? null : row.phase_name, row.project_group === 'reit' ? null : row.unit_number].filter(Boolean).join(' · ');
     case 'asama':
       return normalizeStage(row.stage_label);
     case 'tutar':
@@ -249,7 +249,7 @@ export function AgreementsList({
                               title={owner.display_name}
                               onClick={(event) => {
                                 event.stopPropagation();
-                                openContact(owner.contact_id);
+                                openContact(owner.contact_id, { agreementId: row.id });
                               }}
                             >
                               {owner.display_name}
@@ -259,7 +259,7 @@ export function AgreementsList({
                       ) : id === 'projeDaire' ? (
                         <div className="crm-agreement-project" title={[projectName(row), row.unit_number, address].filter(Boolean).join(' · ')}>
                           <strong>{projectName(row)}</strong>
-                          {row.project_group !== 'reit' && row.unit_number ? <span>{row.unit_number}</span> : null}
+                          {row.project_group !== 'reit' && (row.phase_name || row.unit_number) ? <span>{[row.phase_name, row.unit_number].filter(Boolean).join(' · ')}</span> : null}
                           {address ? <small>{address}</small> : null}
                           {row.has_unit_change ? <em>{t('unitChangeHint')}</em> : null}
                         </div>

@@ -25,6 +25,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -47,6 +48,11 @@ class BudgetCategoryType(str, enum.Enum):
     PROFESSIONAL_FEES = "professional_fees"
     DEVELOPER_FEE = "developer_fee"
     OTHER = "other"
+
+
+class BudgetAudience(str, enum.Enum):
+    INTERNAL = "internal"
+    CUSTOMER = "customer"
 
 
 class BudgetVersionStatus(str, enum.Enum):
@@ -143,8 +149,27 @@ class ProjectCostCode(Base):
 class ProjectBudgetVersion(Base):
     __tablename__ = "project_budget_versions"
     __table_args__ = (
-        UniqueConstraint("project_id", "version_number", name="uq_project_budget_versions_project_version"),
+        Index(
+            "uq_project_budget_versions_project_scope",
+            "project_id",
+            "audience",
+            "version_number",
+            unique=True,
+            postgresql_where=text("phase_id IS NULL"),
+            sqlite_where=text("phase_id IS NULL"),
+        ),
+        Index(
+            "uq_project_budget_versions_phase_scope",
+            "project_id",
+            "phase_id",
+            "audience",
+            "version_number",
+            unique=True,
+            postgresql_where=text("phase_id IS NOT NULL"),
+            sqlite_where=text("phase_id IS NOT NULL"),
+        ),
         Index("ix_project_budget_versions_project_id", "project_id"),
+        Index("ix_project_budget_versions_audience", "audience"),
         Index("ix_project_budget_versions_status", "status"),
         Index("ix_project_budget_versions_is_current", "is_current"),
         Index("ix_project_budget_versions_company_id", "company_id"),
@@ -157,7 +182,16 @@ class ProjectBudgetVersion(Base):
     project_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
+    phase_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("project_phases.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    audience: Mapped[BudgetAudience] = mapped_column(
+        Enum(BudgetAudience, native_enum=False, length=20),
+        nullable=False,
+        default=BudgetAudience.INTERNAL,
+        server_default=BudgetAudience.INTERNAL.value,
+    )
     version_number: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[BudgetVersionStatus] = mapped_column(
         Enum(BudgetVersionStatus, native_enum=False, length=30),

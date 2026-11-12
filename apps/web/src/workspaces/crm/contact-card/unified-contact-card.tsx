@@ -19,6 +19,7 @@ import {
   fetchContactTimeline,
   fetchJunkReasons,
   updateContact,
+  deleteContact,
   type ContactTimelineEntry,
 } from '@/workspaces/crm/api/contacts';
 import {
@@ -36,7 +37,10 @@ import { PilotHistoryStream, type PilotHistoryFilter } from '@/workspaces/crm/co
 import { taskStatusLabel } from '@/workspaces/crm/contact-card/history-html';
 import { UnitHistoryInline } from '@/workspaces/crm/contact-card/unit-history';
 import { contactQueries, contactQueryKeys } from '@/workspaces/crm/hooks/use-contacts';
-import { CRM_CONTACT_TYPES, type CrmContactType, type CrmPurchaseSummary } from '@/workspaces/crm/types';
+import { type CrmContactType, type CrmPurchaseSummary } from '@/workspaces/crm/types';
+import { ActiveProcesses } from '@/workspaces/crm/contact-card/active-processes';
+import { CrmRecordDialog } from '@/workspaces/crm/crm-record-dialog';
+import { CRM_PRIMARY_ROLES, crmSourceChoices } from '@/workspaces/crm/crm-source-options';
 
 import '@/app/workspaces/crm/contacts/_components/ds/contacts-ds.css';
 import './contact-card.css';
@@ -70,7 +74,23 @@ function formatLeadSource(raw: string | null | undefined, t: PersonCardCopy): st
 }
 
 function roleLabel(type: string, t: PersonCardCopy) {
-  return t.roleLabels[type as keyof PersonCardCopy['roleLabels']] || type;
+  const key = type.trim().toLocaleLowerCase('tr');
+  if (key === 'agent' || key === 'acenta' || key === 'acente') return t.agent;
+  return t.roleLabels[type as keyof PersonCardCopy['roleLabels']] || type.replace(/Acenta/g, 'Acente').replace(/acenta/g, 'acente');
+}
+
+function visibleRoleLabels(types: string[], isAgent: boolean, t: PersonCardCopy): string[] {
+  const labels = types.map((type) => roleLabel(type, t));
+  if (isAgent) labels.push(t.agent);
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const label of labels) {
+    const key = label.toLocaleLowerCase('tr');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(label);
+  }
+  return unique;
 }
 
 function initials(name: string) {
@@ -156,6 +176,7 @@ function crmStatusLabel(raw: string | null | undefined, t: PersonCardCopy): stri
 
 function purchaseStatusLabel(purchase: CrmPurchaseSummary, t: PersonCardCopy) {
   if (purchase.is_historical_unit_change) return t.unitChange;
+  if (purchase.status === 'cancelled') return 'İptal Edildi';
   return crmStatusLabel(purchase.stage, t) || crmStatusLabel(purchase.status, t);
 }
 
@@ -185,6 +206,7 @@ function PurchaseHistoryRow({
   const t = personCardCopy(useLocale());
   const isReit = purchase.project_group === 'reit';
   const historical = Boolean(purchase.is_historical_unit_change);
+  const cancelled = purchase.status === 'cancelled';
   const status = purchaseStatusLabel(purchase, t);
   const amount = purchase.amount_label || purchase.amount || null;
   const unit = isReit
@@ -193,10 +215,10 @@ function PurchaseHistoryRow({
       ? [purchase.unit_number || purchase.original_unit, purchase.final_unit ? `→ ${purchase.final_unit}` : null]
           .filter(Boolean)
           .join(' ')
-      : purchase.unit_number;
+      : [purchase.phase_name, purchase.unit_number].filter(Boolean).join(' · ') || null;
   return (
     <tr
-      className={historical ? 'is-historical' : 'is-current-purchase'}
+      className={cancelled ? 'is-cancelled' : historical ? 'is-historical' : 'is-current-purchase'}
       data-testid={`purchase-row-${purchase.bitrix_deal_id || purchase.agreement_id}`}
       role="button"
       tabIndex={0}
@@ -352,11 +374,12 @@ export function UnifiedContactCard({
   const t = personCardCopy(locale);
   const queryClient = useQueryClient();
   const router = useRouter();
-  const { openPurchase } = useContactCard();
-  const { authLoading, canRead, has, user, canViewFinancial } = useCrmAccess();
+  const { openPurchase, closeContact, openContact, focusLeadId, focusAgreementId } = useContactCard();
+  const { authLoading, canRead, has, user } = useCrmAccess();
   const canSendEmail = has('send_communications');
   const canCreate = has('create');
   const canUpdate = has('update');
+  const canDelete = has('delete');
   const canTransferOwnership = has('transfer_ownership');
   const canManageTasks = has('manage_tasks');
   const canManageMeetings = has('manage_meetings');
@@ -408,6 +431,18 @@ export function UnifiedContactCard({
   });
 
   const [panel, setPanel] = useState<Panel>(null);
+  const [saleOpen, setSaleOpen] = useState(false);
+  const [processFocus, setProcessFocus] = useState<{ leadId: string | null; agreementId: string | null }>({
+    leadId: null,
+    agreementId: null,
+  });
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setProcessFocus({
+      leadId: focusLeadId || params.get('lead'),
+      agreementId: focusAgreementId || params.get('agreement') || params.get('purchase'),
+    });
+  }, [pathname, focusLeadId, focusAgreementId]);
   const [emailComposeOpen, setEmailComposeOpen] = useState(false);
   const [whatsappComposeOpen, setWhatsappComposeOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -531,6 +566,22 @@ export function UnifiedContactCard({
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteContact(contactId),
+    onSuccess: async () => {
+      setError(null);
+      await queryClient.invalidateQueries({ queryKey: contactQueryKeys.all });
+      if (variant === 'drawer') {
+        closeContact();
+      } else {
+        router.push('/workspaces/crm/contacts' as Route);
+      }
+    },
+    onError: (err: Error) => {
+      setError(friendlyError(err.message, t));
+    },
+  });
+
   const users: UserRecord[] = usersQuery.data?.items ?? [];
   const timeline = useMemo(
     () => [...(timelineQuery.data?.items ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at)),
@@ -552,6 +603,8 @@ export function UnifiedContactCard({
   const ownerName = contact.owner_name ?? contact.bitrix_responsible ?? null;
   const purchases = contact.purchases ?? [];
   const currentPurchases = purchases.filter((item) => !item.is_historical_unit_change);
+  const hasAgreements =
+    purchases.length > 0 || (contact.crm_agreements?.length ?? 0) > 0;
   const documents = documentsQuery.data ?? [];
   const visibleDocuments = documents.filter((doc) => !doc.hidden_from_view);
   const sourceRaw = contact.bitrix_source_channel || contact.source;
@@ -684,7 +737,7 @@ export function UnifiedContactCard({
   const submitEdit = (event: FormEvent) => {
     event.preventDefault();
     const combinedName = `${firstName.trim()} ${lastName.trim()}`.trim();
-    const nextDisplay = displayName.trim() || combinedName;
+    const nextDisplay = combinedName || contact.display_name;
     if (!nextDisplay) {
       setError(t.nameRequired);
       return;
@@ -719,17 +772,6 @@ export function UnifiedContactCard({
       if (language.trim() !== currentLanguage) {
         payload.communication_prefs = { language: language.trim() || null };
       }
-      if (canViewFinancial) {
-        const currentMin = contact.buyer_profile?.budget_min != null ? String(contact.buyer_profile.budget_min) : '';
-        const currentMax = contact.buyer_profile?.budget_max != null ? String(contact.buyer_profile.budget_max) : '';
-        if (budgetMin.trim() !== currentMin || budgetMax.trim() !== currentMax) {
-          payload.buyer_profile = {
-            ...(contact.buyer_profile ?? {}),
-            budget_min: budgetMin.trim() ? Number(budgetMin.trim()) : null,
-            budget_max: budgetMax.trim() ? Number(budgetMax.trim()) : null,
-          };
-        }
-      }
       if (source.trim() !== (contact.source ?? contact.bitrix_source_channel ?? '')) {
         payload.source = source.trim() || undefined;
       }
@@ -763,20 +805,21 @@ export function UnifiedContactCard({
       await createActivity({
         entity_type: 'contact',
         entity_id: contactId,
-        activity_type: noteType === 'note' ? 'comment' : noteType,
+        activity_type: noteType,
         title: typeLabel,
         description: note.trim(),
         start_date: noteAt ? toIso(noteAt) : new Date().toISOString(),
         status: 'completed',
       });
       if (canManageFollowUps && noteNeedsFollowUp && noteFollowUpAt) {
-        await createFollowUp({
+        await createTask({
           entity_type: 'contact',
           entity_id: contactId,
-          reason: 'relationship_review',
           title: t.followKind,
+          description: note.trim(),
+          assigned_user_id: user?.id,
           due_date: toIso(noteFollowUpAt),
-          notes: note.trim(),
+          metadata_json: { source: 'communication_follow_up' },
         });
       }
       setNote('');
@@ -1002,12 +1045,15 @@ export function UnifiedContactCard({
           <div className="crm-person-hero__identity">
             <div className="crm-person-hero__name-row">
               <h1>{contact.display_name}</h1>
-              {(contact.contact_types.length ? contact.contact_types : [contact.contact_type]).map((type) => (
-                <span key={type} className="crm-person-chip">
-                  {roleLabel(type, t)}
+              {visibleRoleLabels(
+                contact.contact_types.length ? contact.contact_types : [contact.contact_type],
+                Boolean(contact.is_agent),
+                t,
+              ).map((label) => (
+                <span key={label} className="crm-person-chip">
+                  {label}
                 </span>
               ))}
-              {contact.is_agent ? <span className="crm-person-chip">{t.agent}</span> : null}
               <StatusChip tone={isJunk ? 'default' : 'success'}>{isJunk ? t.junk : t.active}</StatusChip>
             </div>
             <div className="crm-contact-card__tags" data-testid="contact-tags">
@@ -1090,6 +1136,7 @@ export function UnifiedContactCard({
             mode="new"
             contactId={contact.id}
             leadId={contact.lead_id}
+            agreementId={processFocus.agreementId}
             defaultTo={contact.primary_email}
             defaultSubject=""
             onSent={() => setEmailComposeOpen(false)}
@@ -1105,6 +1152,11 @@ export function UnifiedContactCard({
           />
         ) : null}
         <div className="crm-person-actions">
+          {canCreate ? (
+            <button type="button" className="crm-person-action" onClick={() => setSaleOpen(true)}>
+              Satış / Anlaşma Oluştur
+            </button>
+          ) : null}
           {canSendEmail && contact.primary_email ? (
             <button type="button" className="crm-person-action" onClick={() => setEmailComposeOpen((open) => !open)}>
               <IhIcon name="mail" size={14} /> {t.email}
@@ -1157,7 +1209,7 @@ export function UnifiedContactCard({
               <IhIcon name="meeting" size={14} /> {t.meeting}
             </button>
           ) : null}
-          {canUpdate || canTransferOwnership || canManageTasks ? (
+          {canUpdate || canTransferOwnership || canManageTasks || canDelete ? (
             <button
               type="button"
               className={`crm-person-action${panel === 'more' || panel === 'assign' ? ' is-active' : ''}`}
@@ -1166,40 +1218,35 @@ export function UnifiedContactCard({
               {t.more}
             </button>
           ) : null}
-          {canUpdate ? (
-            <Button type="button" size="sm" data-testid="contact-edit-open" onClick={() => togglePanel('edit')}>
-              {t.edit}
-            </Button>
-          ) : null}
         </div>
         {panel === 'more' ? (
-          <div className="crm-person-more">
+          <div className="crm-person-more" data-testid="contact-more-menu">
             {canTransferOwnership ? (
               <button type="button" data-testid="contact-assign-owner" onClick={() => togglePanel('assign')}>
                 {t.assignOwner}
               </button>
             ) : null}
-            {canManageTasks ? (
-              <button
-                type="button"
-                data-testid="contact-task-action"
-                onClick={() => {
-                  setTaskKind('task');
-                  togglePanel('task');
-                }}
-              >
-                {t.createTask}
+            {canUpdate ? (
+              <button type="button" data-testid="contact-edit-open" onClick={() => togglePanel('edit')}>
+                {t.edit}
               </button>
             ) : null}
-            {canUpdate ? (
+            {canTransferOwnership || canUpdate ? <hr /> : null}
+            {canDelete && !hasAgreements ? (
               <button
                 type="button"
+                data-testid="contact-delete"
+                disabled={deleteMutation.isPending}
                 onClick={() => {
-                  setStatusValue('archived');
-                  togglePanel('edit');
+                  const confirmed = window.confirm(
+                    locale === 'tr'
+                      ? 'Bu kişiyi kalıcı olarak silmek istediğinize emin misiniz?'
+                      : 'Are you sure you want to permanently delete this person?',
+                  );
+                  if (confirmed) deleteMutation.mutate();
                 }}
               >
-                {t.moveToJunk}
+                {locale === 'tr' ? 'Kişiyi Sil' : 'Delete Person'}
               </button>
             ) : null}
           </div>
@@ -1212,6 +1259,13 @@ export function UnifiedContactCard({
           <div>{t.junkReason}: {contact.junk_reason || contact.bitrix_history?.junk_reason || '—'}</div>
         </div>
       ) : null}
+
+      <ActiveProcesses
+        contactId={contact.id}
+        canUpdate={canUpdate}
+        focusLeadId={processFocus.leadId}
+        focusAgreementId={processFocus.agreementId}
+      />
 
       {contact.agent?.is_agent ? (
         <div className="crm-contact-card__banner" data-testid="contact-agent-banner">
@@ -1240,15 +1294,10 @@ export function UnifiedContactCard({
           <h2>{t.editPerson}</h2>
           <form onSubmit={submitEdit} className="crm-contact-card__panel">
             <div className="crm-contact-card__panel-grid">
-              <Input label={t.displayName} value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
               <Input label={t.firstName} value={firstName} onChange={(event) => setFirstName(event.target.value)} />
               <Input label={t.lastName} value={lastName} onChange={(event) => setLastName(event.target.value)} />
               <Input label={t.phone} value={phone} onChange={(event) => setPhone(event.target.value)} />
-              <Input label={t.whatsapp} value={whatsapp} onChange={(event) => setWhatsapp(event.target.value)} />
-              <Input label={t.extraPhones} value={extraPhones} onChange={(event) => setExtraPhones(event.target.value)} />
               <Input label={t.email} value={email} onChange={(event) => setEmail(event.target.value)} />
-              <Input label={t.secondEmail} value={secondEmail} onChange={(event) => setSecondEmail(event.target.value)} />
-              <Input label={t.extraEmails} value={extraEmails} onChange={(event) => setExtraEmails(event.target.value)} />
               <Input label={t.address} value={address} onChange={(event) => setAddress(event.target.value)} />
               <Input label={t.city} value={city} onChange={(event) => setCity(event.target.value)} />
               <Input label={t.region} value={region} onChange={(event) => setRegion(event.target.value)} />
@@ -1261,25 +1310,13 @@ export function UnifiedContactCard({
                 <option value="ru">Русский</option>
                 <option value="ar">العربية</option>
               </Select>
-              {canViewFinancial ? (
-                <>
-                  <Input
-                    label={t.budgetMin}
-                    value={budgetMin}
-                    onChange={(event) => setBudgetMin(event.target.value)}
-                    inputMode="decimal"
-                  />
-                  <Input
-                    label={t.budgetMax}
-                    value={budgetMax}
-                    onChange={(event) => setBudgetMax(event.target.value)}
-                    inputMode="decimal"
-                  />
-                </>
-              ) : null}
               <Input label={t.company} value={company} onChange={(event) => setCompany(event.target.value)} />
               <Input label={t.position} value={position} onChange={(event) => setPosition(event.target.value)} />
-              <Input label={t.source} value={source} onChange={(event) => setSource(event.target.value)} />
+              <Select label={t.source} value={crmSourceChoices(source).some((item) => item.value === source) ? source : source} onChange={(event) => setSource(event.target.value)}>
+                {crmSourceChoices(source).map((item) => (
+                  <option key={item.value} value={item.value}>{item.label}</option>
+                ))}
+              </Select>
               <Select label={t.status} value={statusValue} onChange={(event) => setStatusValue(event.target.value as 'active' | 'archived')}>
                 <option value="active">{t.active}</option>
                 <option value="archived">{t.junk}</option>
@@ -1309,18 +1346,18 @@ export function UnifiedContactCard({
             <div>
               <div className="crm-contact-card__meta-line">{t.roles}</div>
               <div className="crm-contact-card__roles">
-                {CRM_CONTACT_TYPES.map((type) => (
-                  <label key={type}>
+                {CRM_PRIMARY_ROLES.map((type) => (
+                  <label key={type.value}>
                     <input
                       type="checkbox"
-                      checked={roles.includes(type)}
+                      checked={roles.includes(type.value)}
                       onChange={() => {
                         setRoles((current) =>
-                          current.includes(type) ? current.filter((item) => item !== type) : [...current, type],
+                          current.includes(type.value) ? current.filter((item) => item !== type.value) : [...current, type.value],
                         );
                       }}
                     />
-                    {roleLabel(type, t)}
+                    {type.label}
                   </label>
                 ))}
               </div>
@@ -1497,6 +1534,11 @@ export function UnifiedContactCard({
               </div>
               <dl className="crm-person-info">
                 <InfoRow label={t.displayName} value={contact.display_name} />
+                {contact.notes ? (
+                  <div data-testid="contact-saved-note">
+                    <InfoRow label={t.notes} value={contact.notes} />
+                  </div>
+                ) : null}
                 <InfoRow label={t.firstName} value={contact.first_name} />
                 <InfoRow label={t.lastName} value={contact.last_name} />
                 <InfoRow label={t.phone} value={contact.primary_phone} />
@@ -1512,22 +1554,14 @@ export function UnifiedContactCard({
                   label={t.language}
                   value={typeof contact.communication_prefs?.language === 'string' ? contact.communication_prefs.language : null}
                 />
-                {canViewFinancial ? (
-                  <InfoRow
-                    label={t.buyerBudget}
-                    value={
-                      contact.buyer_profile?.budget_min != null || contact.buyer_profile?.budget_max != null
-                        ? [contact.buyer_profile?.budget_min, contact.buyer_profile?.budget_max].filter((item) => item != null).join(' – ')
-                        : null
-                    }
-                  />
-                ) : null}
                 <InfoRow label={t.company} value={contact.organization_name || contact.company_name} />
                 <InfoRow
                   label={t.role}
-                  value={(contact.contact_types.length ? contact.contact_types : [contact.contact_type])
-                    .map((type) => roleLabel(type, t))
-                    .join(', ')}
+                  value={visibleRoleLabels(
+                    contact.contact_types.length ? contact.contact_types : [contact.contact_type],
+                    Boolean(contact.is_agent),
+                    t,
+                  ).join(', ')}
                 />
                 <InfoRow label={t.source} value={sourceLabel} />
                 <InfoRow label={t.referrer} value={referrerName} />
@@ -1610,7 +1644,7 @@ export function UnifiedContactCard({
                       {agreement.agreement_date ? ` · ${t.agreementDate}: ${agreement.agreement_date}` : ''}
                       {isReit
                         ? ` · ${t.investmentAmount}: ${agreement.investment_amount || '—'}`
-                        : ` · ${t.unitNumber}: ${agreement.unit_number || '—'}`}
+                        : ` · ${t.unitNumber}: ${agreement.unit_display || [agreement.phase_name, agreement.unit_number].filter(Boolean).join(' · ') || '—'}`}
                       {!isReit && agreement.purchase_price ? ` · ${t.salePrice}: ${agreement.purchase_price}` : ''}
                       {!isReit && agreement.payment_amount ? ` · ${t.payment}: ${agreement.payment_amount}` : ''}
                       {!isReit && agreement.deposit ? ` · ${t.deposit}: ${agreement.deposit}` : ''}
@@ -1649,6 +1683,7 @@ export function UnifiedContactCard({
           includeDocuments={false}
           heading={t.historyHeading}
           canSendEmail={canSendEmail}
+          onAdd={canCreate ? () => { setNoteType('note'); setPanel('note'); } : undefined}
         />
       ) : null}
 
@@ -1659,7 +1694,7 @@ export function UnifiedContactCard({
             <p>{t.noDocumentView}</p>
           ) : documentsQuery.isLoading ? (
             <p>{t.loading}</p>
-          ) : documents.length ? (
+          ) : documents.length || canUploadDocuments ? (
             <div data-testid="nedim-general-documents">
               <DocumentGallery
                 documents={documents}
@@ -1690,6 +1725,19 @@ export function UnifiedContactCard({
             </form>
           ) : null}
         </section>
+      ) : null}
+      {saleOpen ? (
+        <CrmRecordDialog
+          mode="agreement"
+          contactId={contact.id}
+          onClose={() => setSaleOpen(false)}
+          onDone={(_message, result) => {
+            setSaleOpen(false);
+            if (result?.agreement_id) openContact(contact.id, { agreementId: result.agreement_id });
+            void queryClient.invalidateQueries({ queryKey: ['crm'] });
+            void queryClient.invalidateQueries({ queryKey: ['crm', 'processes', contactId] });
+          }}
+        />
       ) : null}
     </div>
   );

@@ -12,7 +12,13 @@ from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session
 
 from investhome_api.models.activity import ActivityEntityType
-from investhome_api.models.finance import FundingCommitment, ProjectBudget
+from investhome_api.models.finance import CommitmentStatus, FundingCommitment, ProjectBudget
+from investhome_api.models.project_budget import (
+    BudgetAudience,
+    BudgetVersionStatus,
+    ProjectBudgetLine,
+    ProjectBudgetVersion,
+)
 from investhome_api.models.inventory import (
     AvailabilityStatus,
     Building,
@@ -57,6 +63,7 @@ from investhome_api.services.document_service import build_list_query, enrich_re
 from investhome_api.services.operational_child_scope import operational_child_clause
 from investhome_api.services.permission_service import user_has_permission
 from investhome_api.services.project_alerts import compute_project_risk, generate_alerts_for_project
+from investhome_api.services.inventory.phase_identity import operational_phase_id
 from investhome_api.services.project_dashboard_service import _budget_maps, _inventory_counts
 from investhome_api.services.project_milestones import derive_milestones_for_project
 
@@ -376,13 +383,361 @@ def get_overview(db: Session, user: User, project_id: UUID) -> ProjectOverviewRe
     )
 
 
-def get_financials(db: Session, user: User, project_id: UUID) -> ProjectFinancialsResponse:
+def _scoped_version_cost(
+    db: Session,
+    project_id: UUID,
+    audience: BudgetAudience,
+    phase_id: UUID | None = None,
+) -> tuple[Decimal | None, Decimal | None]:
+    """Cost from current approved versions.
+
+    A selected phase uses only that phase. The whole project uses phase
+    versions when any exist, and does not also add the project-level version.
+    With no phase versions, the existing project-level version is used.
+    """
+    if phase_id is None:
+        phased_exists = db.scalar(
+            select(ProjectBudgetVersion.id)
+            .where(
+                ProjectBudgetVersion.project_id == project_id,
+                ProjectBudgetVersion.audience == audience,
+                ProjectBudgetVersion.is_current.is_(True),
+                ProjectBudgetVersion.status == BudgetVersionStatus.APPROVED,
+                ProjectBudgetVersion.phase_id.is_not(None),
+            )
+            .limit(1)
+        )
+        if phased_exists is None:
+            version = _current_version(db, project_id, audience)
+            if version is None:
+                return None, None
+            return _active_line_total(db, version.id)
+    versions = list(
+        db.scalars(
+            select(ProjectBudgetVersion).where(
+                ProjectBudgetVersion.project_id == project_id,
+                ProjectBudgetVersion.audience == audience,
+                ProjectBudgetVersion.is_current.is_(True),
+                ProjectBudgetVersion.status == BudgetVersionStatus.APPROVED,
+            )
+        ).all()
+    )
+    if phase_id is not None:
+        chosen = [version for version in versions if version.phase_id == phase_id]
+    else:
+        chosen = [version for version in versions if version.phase_id is not None]
+    if not chosen:
+        return None, None
+    current = ZERO
+    estimated = ZERO
+    for version in chosen:
+        line_current, line_estimated = _active_line_total(db, version.id)
+        current += line_current
+        estimated += line_estimated
+    return current, estimated
+
+
+def _current_version(
+    db: Session, project_id: UUID, audience: BudgetAudience
+) -> ProjectBudgetVersion | None:
+    return db.scalars(
+        select(ProjectBudgetVersion).where(
+            ProjectBudgetVersion.project_id == project_id,
+            ProjectBudgetVersion.audience == audience,
+            ProjectBudgetVersion.is_current.is_(True),
+            ProjectBudgetVersion.status == BudgetVersionStatus.APPROVED,
+        )
+    ).first()
+
+
+def _active_line_total(db: Session, version_id: UUID) -> tuple[Decimal, Decimal]:
+    lines = list(
+        db.scalars(
+            select(ProjectBudgetLine).where(
+                ProjectBudgetLine.budget_version_id == version_id,
+                ProjectBudgetLine.is_active.is_(True),
+                ProjectBudgetLine.is_summary.is_(False),
+            )
+        ).all()
+    )
+    current = sum((line.current_budget or ZERO for line in lines), ZERO)
+    estimated = sum(
+        (
+            line.forecast_at_completion
+            if line.forecast_at_completion is not None
+            else (line.current_budget or ZERO)
+            for line in lines
+        ),
+        ZERO,
+    )
+    return current, estimated
+
+
+_CONTRACTED_STATUSES = (
+    CommitmentStatus.COMMITTED,
+    CommitmentStatus.PARTIALLY_FUNDED,
+    CommitmentStatus.FULLY_FUNDED,
+    CommitmentStatus.DELAYED,
+)
+
+
+def _investor_terms(
+    db: Session, project_id: UUID, phase_id: UUID | None = None
+) -> tuple[Decimal | None, Decimal | None, str]:
+    """Capital and contracted profit for active commitments.
+
+    Proposed and cancelled rows are excluded. A missing profit stays unknown.
+    Mixed currencies are not added together. Investor profit is not a project cost.
+    """
+    rows = list(
+        db.scalars(
+            select(FundingCommitment).where(
+                FundingCommitment.project_id == project_id,
+                FundingCommitment.status.in_(_CONTRACTED_STATUSES),
+                operational_child_clause(
+                    FundingCommitment.is_demo, FundingCommitment.project_id
+                ),
+            )
+        ).all()
+    )
+    if phase_id is not None:
+        rows = [row for row in rows if row.phase_id == phase_id]
+        if not rows:
+            return None, None, "No funding commitment is recorded for this phase"
+    if not rows:
+        return ZERO, None, "No contracted funding commitment"
+    currencies = {row.currency for row in rows}
+    if len(currencies) != 1:
+        return None, None, "Included commitments do not share one currency"
+    capital = sum((row.committed_amount for row in rows), ZERO)
+    if any(row.contracted_profit is None for row in rows):
+        return capital, None, "Contracted profit is missing on a commitment"
+    profit = sum((row.contracted_profit or ZERO for row in rows), ZERO)
+    return capital, profit, ""
+
+
+def _parse_money(raw: object) -> Decimal | None:
+    text = str(raw or "").strip()
+    if not text:
+        return None
+    try:
+        return Decimal(text)
+    except Exception:
+        return None
+
+
+def _explicit_adjustment(meta: object) -> Decimal | None:
+    if not isinstance(meta, dict):
+        return ZERO
+    total = ZERO
+    for key in ("discount_amount", "adjustment_amount"):
+        if key not in meta or meta[key] is None:
+            continue
+        parsed = _parse_money(meta[key])
+        if parsed is None:
+            return None
+        total += parsed
+    return total
+
+
+def _active_sale_agreements(db: Session, project_id: UUID, phase_id: UUID | None):
+    from investhome_api.models.crm_agreement import CrmAgreement, CrmAgreementStatus
+    from investhome_api.services.crm.unit_change import (
+        is_historical_unit_change,
+        is_relationship_detached,
+    )
+
+    rows = list(
+        db.scalars(
+            select(CrmAgreement).where(
+                CrmAgreement.project_id == project_id,
+                CrmAgreement.status != CrmAgreementStatus.CANCELLED,
+            )
+        ).all()
+    )
+    if phase_id is not None:
+        rows = [row for row in rows if row.phase_id == phase_id]
+    return [
+        row
+        for row in rows
+        if not is_historical_unit_change(row) and not is_relationship_detached(row)
+    ]
+
+
+def _net_verified_cash(db: Session, agreement_ids: set[UUID], currency: str) -> dict[UUID, Decimal | None]:
+    """Completed receipts minus completed refunds. Unlinked or pending cash stays unknown."""
+    from investhome_api.models.finance import FinanceTransaction, TransactionStatus, TransactionType
+
+    if not agreement_ids:
+        return {}
+    movements = list(
+        db.scalars(
+            select(FinanceTransaction).where(
+                FinanceTransaction.agreement_id.in_(agreement_ids),
+                FinanceTransaction.archived_at.is_(None),
+                FinanceTransaction.status == TransactionStatus.COMPLETED,
+                operational_child_clause(
+                    FinanceTransaction.is_demo, FinanceTransaction.project_id
+                ),
+            )
+        ).all()
+    )
+    grouped: dict[UUID, list] = {agreement_id: [] for agreement_id in agreement_ids}
+    for row in movements:
+        if row.agreement_id is not None:
+            grouped.setdefault(row.agreement_id, []).append(row)
+    receipts = {TransactionType.SALE_PROCEEDS, TransactionType.INCOME}
+    nets: dict[UUID, Decimal | None] = {}
+    for agreement_id, rows in grouped.items():
+        verified = [
+            row
+            for row in rows
+            if row.transaction_type in receipts or row.transaction_type == TransactionType.REFUND
+        ]
+        if not verified or any((row.currency or "").upper() != currency for row in verified):
+            nets[agreement_id] = None
+            continue
+        incoming = sum(
+            (row.amount for row in verified if row.transaction_type in receipts),
+            ZERO,
+        )
+        returned = sum(
+            (row.amount for row in verified if row.transaction_type == TransactionType.REFUND),
+            ZERO,
+        )
+        nets[agreement_id] = incoming - returned
+    return nets
+
+
+def _sale_position(
+    db: Session, project_id: UUID, phase_id: UUID | None, currency: str
+) -> tuple[Decimal | None, Decimal | None, Decimal | None, str]:
+    """Contracted price, verified net cash, and remaining receivable.
+
+    A missing collection link stays unknown. It is not treated as zero.
+    Cash refunds reduce verified net cash once. Commission is not included.
+    """
+    rows = _active_sale_agreements(db, project_id, phase_id)
+    if not rows:
+        return None, None, None, "No contracted sale is recorded"
+    cash = _net_verified_cash(db, {row.id for row in rows}, currency.upper())
+    contracted = ZERO
+    collected = ZERO
+    remaining = ZERO
+    cash_known = True
+    for row in rows:
+        sale = _parse_money(row.investment_amount)
+        if sale is None:
+            return None, None, None, "A contracted sale has no amount"
+        adjustment = _explicit_adjustment(row.metadata_json)
+        if adjustment is None:
+            return None, None, None, "A sale adjustment is not numeric"
+        contracted += sale
+        net = cash.get(row.id)
+        if net is None:
+            cash_known = False
+            continue
+        collected += net
+        remaining += sale - adjustment - net
+    if not cash_known:
+        return contracted, None, None, "Verified collection is not linked"
+    return contracted, collected, remaining, ""
+
+
+def _commission_position(
+    db: Session, project_id: UUID, phase_id: UUID | None
+) -> tuple[Decimal | None, Decimal | None, Decimal | None, str]:
+    """Broker commission on the sale. It is not sale proceeds or a customer receipt."""
+    from investhome_api.models.crm_agreement import CrmAgreementParticipant
+
+    rows = _active_sale_agreements(db, project_id, phase_id)
+    if not rows:
+        return None, None, None, "No commission is recorded"
+    by_id = {row.id: row for row in rows}
+    participants = list(
+        db.scalars(
+            select(CrmAgreementParticipant).where(
+                CrmAgreementParticipant.agreement_id.in_(by_id)
+            )
+        ).all()
+    )
+    agent_roles = {"broker", "realtor", "agent", "agency"}
+    relevant = [
+        row
+        for row in participants
+        if (row.role or "").casefold() in agent_roles
+        or row.commission_amount is not None
+        or row.commission_rate is not None
+        or row.commission_paid is not None
+    ]
+    if not relevant:
+        return None, None, None, "No commission is recorded"
+    amount_total = ZERO
+    paid_total = ZERO
+    paid_known = True
+    for row in relevant:
+        amount = row.commission_amount
+        sale = _parse_money(by_id[row.agreement_id].investment_amount)
+        if amount is None and row.commission_rate is not None and sale is not None:
+            amount = (row.commission_rate * sale).quantize(Decimal("0.01"))
+        if amount is None:
+            return None, None, None, "Commission amount is missing"
+        amount_total += amount
+        if row.commission_paid is None:
+            paid_known = False
+            continue
+        paid_total += row.commission_paid
+    if not paid_known:
+        return amount_total, None, None, "Commission payment is missing"
+    return amount_total, paid_total, amount_total - paid_total, ""
+
+
+def _asset_sale_facts(
+    db: Session, project_id: UUID, asset_ids: list[UUID], currency: str
+) -> dict[UUID, dict[str, Decimal | str | None]]:
+    wanted = set(asset_ids)
+    rows = [
+        row
+        for row in _active_sale_agreements(db, project_id, None)
+        if row.inventory_asset_id in wanted
+    ]
+    cash = _net_verified_cash(db, {row.id for row in rows}, currency.upper())
+    facts: dict[UUID, dict[str, Decimal | None]] = {}
+    for row in rows:
+        asset_id = row.inventory_asset_id
+        if asset_id is None:
+            continue
+        if asset_id in facts:
+            facts[asset_id] = {"sale": None, "collected": None, "plan": None}
+            continue
+        meta = row.metadata_json if isinstance(row.metadata_json, dict) else {}
+        plan = meta.get("payment_plan")
+        facts[asset_id] = {
+            "sale": _parse_money(row.investment_amount),
+            "collected": cash.get(row.id),
+            "plan": plan.strip() if isinstance(plan, str) and plan.strip() else None,
+        }
+    return facts
+
+
+_CUSTOMER_PROFIT_HIDDEN = unavailable("Not included in the customer proforma")
+
+
+def get_financials(
+    db: Session,
+    user: User,
+    project_id: UUID,
+    *,
+    audience: BudgetAudience = BudgetAudience.INTERNAL,
+    phase_id: UUID | None = None,
+) -> ProjectFinancialsResponse:
     if not _can_view_financial(user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view project financials",
         )
     project = _load_project(db, project_id)
+    phase_id = operational_phase_id(uses_phases=project.uses_phases, phase_id=phase_id)
     spent_map, total_map = _budget_maps(db, [project.id])
     spent = spent_map.get(project.id, ZERO)
     line_total = total_map.get(project.id, ZERO)
@@ -412,14 +767,110 @@ def get_financials(db: Session, user: User, project_id: UUID) -> ProjectFinancia
             )
         ).all()
     )
+    if phase_id is not None:
+        commitments = [row for row in commitments if row.phase_id == phase_id]
     warnings: list[str] = []
     if not budgets:
         warnings.append("No linked project budget lines.")
     if not commitments:
         warnings.append("No linked funding commitments.")
 
+    line_cost, estimated_cost = _scoped_version_cost(
+        db, project.id, BudgetAudience.INTERNAL, phase_id
+    )
+    legacy_revised = sum(
+        ((item.revised_budget if item.revised_budget is not None else item.original_budget) or ZERO)
+        for item in budgets
+    )
+    if phase_id is not None:
+        total_project_cost = line_cost
+    elif line_cost is not None:
+        total_project_cost = line_cost
+    elif budgets:
+        total_project_cost = legacy_revised
+    else:
+        total_project_cost = project.total_development_cost
+    if estimated_cost is None and phase_id is None:
+        estimated_cost = total_project_cost
+    actual_cost = None if phase_id is not None else spent
+    remaining_budget = (
+        (total_project_cost - actual_cost)
+        if total_project_cost is not None and actual_cost is not None
+        else None
+    )
+    revenue = None if phase_id is not None else project.projected_revenue
+    total_profit = (
+        (revenue - total_project_cost)
+        if revenue is not None and total_project_cost is not None
+        else None
+    )
+    committed_capital, contracted_profit, profit_reason = _investor_terms(
+        db, project.id, phase_id
+    )
+    sale_currency = (project.currency or "USD").upper()
+    contracted_sales, verified_cash, receivable, sales_reason = _sale_position(
+        db, project.id, phase_id, sale_currency
+    )
+    commission_amount, commission_paid, commission_remaining, commission_reason = (
+        _commission_position(db, project.id, phase_id)
+    )
+    investor_return = (
+        committed_capital + contracted_profit
+        if committed_capital is not None and contracted_profit is not None
+        else None
+    )
+    investhome_profit = (
+        total_profit - contracted_profit
+        if total_profit is not None and contracted_profit is not None
+        else None
+    )
+    capital_metric = (
+        metric(committed_capital)
+        if committed_capital is not None
+        else unavailable(profit_reason)
+    )
+    profit_metric = _financial_metric(
+        contracted_profit, access=True, reason=profit_reason or "Contracted profit is unknown"
+    )
+    return_metric = _financial_metric(
+        investor_return, access=True, reason=profit_reason or "Contracted profit is unknown"
+    )
+    residual_metric = _financial_metric(
+        investhome_profit,
+        access=True,
+        reason=profit_reason or "Revenue, cost, or contracted profit is unavailable",
+    )
+
+    if audience == BudgetAudience.CUSTOMER:
+        published, _ignored = _scoped_version_cost(
+            db, project.id, BudgetAudience.CUSTOMER, phase_id
+        )
+        return ProjectFinancialsResponse(
+            financial_access=True,
+            audience=BudgetAudience.CUSTOMER.value,
+            summary={
+                "published_budget": _financial_metric(
+                    published, access=True, reason="No customer proforma"
+                ),
+                "contracted_sales_value": _financial_metric(
+                    contracted_sales,
+                    access=True,
+                    reason=sales_reason or "No contracted sale is recorded",
+                ),
+                "financing": capital_metric,
+                "investor_committed_capital": capital_metric,
+                "investor_contracted_profit": _CUSTOMER_PROFIT_HIDDEN,
+                "investor_total_return": _CUSTOMER_PROFIT_HIDDEN,
+                "investhome_estimated_profit": _CUSTOMER_PROFIT_HIDDEN,
+            },
+            budgets=[],
+            capital=[],
+            warnings=["Customer view omits internal cost, profit, and cash movement."],
+        )
+
     return ProjectFinancialsResponse(
         financial_access=True,
+        audience=BudgetAudience.INTERNAL.value,
         summary={
             "purchase_price": _financial_metric(project.acquisition_price, access=True),
             "land_cost": _financial_metric(project.land_cost, access=True),
@@ -442,13 +893,63 @@ def get_financials(db: Session, user: User, project_id: UUID) -> ProjectFinancia
             "equity_required": _financial_metric(project.equity_required, access=True),
             "equity_raised": _financial_metric(project.equity_raised, access=True),
             "debt_outstanding": _financial_metric(project.debt_amount, access=True),
-            "realized_revenue": unavailable("Realized revenue ledger is not available"),
+            "realized_revenue": _financial_metric(
+                verified_cash, access=True, reason=sales_reason or "Verified collection is not linked"
+            ),
+            "verified_collections": _financial_metric(
+                verified_cash, access=True, reason=sales_reason or "Verified collection is not linked"
+            ),
+            "remaining_receivable": _financial_metric(
+                receivable, access=True, reason=sales_reason or "Verified collection is not linked"
+            ),
+            "commission_amount": _financial_metric(
+                commission_amount, access=True, reason=commission_reason or "No commission is recorded"
+            ),
+            "commission_paid": _financial_metric(
+                commission_paid, access=True, reason=commission_reason or "Commission payment is missing"
+            ),
+            "commission_remaining": _financial_metric(
+                commission_remaining,
+                access=True,
+                reason=commission_reason or "Commission payment is missing",
+            ),
             "realized_profit": unavailable("Realized profit ledger is not available"),
             "roi": unavailable("ROI requires cash-flow history"),
             "irr": unavailable("IRR requires cash-flow history"),
             "equity_multiple": unavailable("Equity multiple requires distribution history"),
+            "total_project_cost": _financial_metric(
+                total_project_cost, access=True, reason="No budget baseline"
+            ),
+            "estimated_cost": _financial_metric(
+                estimated_cost, access=True, reason="No budget baseline"
+            ),
+            "estimated_sales_revenue": _financial_metric(revenue, access=True),
+            "contracted_sales_value": _financial_metric(
+                contracted_sales, access=True, reason=sales_reason or "No contracted sale is recorded"
+            ),
+            "actual_cost": (
+                unavailable("Actual cost is not recorded by phase")
+                if phase_id is not None
+                else metric(actual_cost)
+            ),
+            "remaining_budget": _financial_metric(
+                remaining_budget, access=True, reason="No budget baseline"
+            ),
+            "financing": capital_metric,
+            "total_project_profit": _financial_metric(
+                total_profit, access=True, reason="Revenue or cost is unavailable"
+            ),
+            "project_profitability": _financial_metric(
+                total_profit, access=True, reason="Revenue or cost is unavailable"
+            ),
+            "investor_committed_capital": capital_metric,
+            "investor_contracted_profit": profit_metric,
+            "investor_total_return": return_metric,
+            "investhome_estimated_profit": residual_metric,
         },
-        budgets=[
+        budgets=[]
+        if phase_id is not None
+        else [
             {
                 "id": str(b.id),
                 "budget_name": b.budget_name,
@@ -468,6 +969,7 @@ def get_financials(db: Session, user: User, project_id: UUID) -> ProjectFinancia
                 "investor_id": str(c.investor_id),
                 "commitment_type": c.commitment_type.value if c.commitment_type else None,
                 "committed_amount": c.committed_amount,
+                "contracted_profit": c.contracted_profit,
                 "funded_amount": c.funded_amount,
                 "remaining_amount": c.remaining_amount,
                 "status": c.status.value if c.status else None,
@@ -619,6 +1121,7 @@ def get_units(
     project_id: UUID,
     *,
     search: str | None = None,
+    phase_id: UUID | None = None,
     availability_status: str | None = None,
     sales_status: str | None = None,
     sales_market: str | None = None,
@@ -630,9 +1133,10 @@ def get_units(
     sort_order: str = "asc",
 ) -> ProjectUnitsResponse:
     project = _load_project(db, project_id)
+    phase_id = operational_phase_id(uses_phases=project.uses_phases, phase_id=phase_id)
     financial_access = _can_view_financial(user)
     can_view_list_price = financial_access or user_has_permission(user, "inventory", "view_price")
-    inventory = _inventory_counts(db, [project.id])
+    inventory = _inventory_counts(db, [project.id], phase_id)
 
     query = select(InventoryAsset).where(
         InventoryAsset.project_id == project.id,
@@ -649,6 +1153,9 @@ def get_units(
         )
     )
 
+    if phase_id is not None:
+        query = query.where(InventoryAsset.phase_id == phase_id)
+        count_query = count_query.where(InventoryAsset.phase_id == phase_id)
     if search:
         pattern = f"%{search.strip()}%"
         cond = or_(
@@ -685,6 +1192,20 @@ def get_units(
     query = query.order_by(sort_col.desc() if sort_order == "desc" else sort_col.asc())
 
     total = int(db.scalar(count_query) or 0)
+    priced_count, priced_sum = db.execute(
+        select(
+            func.count(InventoryAsset.list_price),
+            func.coalesce(func.sum(InventoryAsset.list_price), 0),
+        ).where(count_query.whereclause)
+    ).one()
+    if not can_view_list_price:
+        list_value = unavailable("Restricted")
+    elif total == 0:
+        list_value = unavailable("No linked inventory assets")
+    elif int(priced_count or 0) != total:
+        list_value = unavailable("List price is missing on a unit")
+    else:
+        list_value = metric(priced_sum)
     pages = max(1, ceil(total / page_size)) if total else 1
     offset = (page - 1) * page_size
     assets = list(db.scalars(query.offset(offset).limit(page_size)).all())
@@ -702,6 +1223,15 @@ def get_units(
             building.id: building
             for building in db.scalars(select(Building).where(Building.id.in_(building_ids))).all()
         }
+    from investhome_api.models.inventory import ProjectPhase
+
+    phase_ids = {asset.phase_id for asset in assets if getattr(asset, "phase_id", None) is not None}
+    phases_by_id: dict[UUID, ProjectPhase] = {}
+    if phase_ids:
+        phases_by_id = {
+            phase.id: phase
+            for phase in db.scalars(select(ProjectPhase).where(ProjectPhase.id.in_(phase_ids))).all()
+        }
     allocation = _sales_allocation_counts(db, project.id)
 
     def inv_metric(key: str):
@@ -709,13 +1239,21 @@ def get_units(
             return unavailable("No linked inventory assets")
         return metric(inventory[key])
 
+    sale_facts = (
+        _asset_sale_facts(db, project.id, [asset.id for asset in assets], project.currency or "USD")
+        if financial_access
+        else {}
+    )
     items = []
     for asset in assets:
         floor = floors_by_id.get(asset.floor_id) if asset.floor_id else None
         building = buildings_by_id.get(asset.building_id) if asset.building_id else None
         building_label = building.name if building else None
+        phase = phases_by_id.get(asset.phase_id) if getattr(asset, "phase_id", None) else None
+        phase_name = phase.name if phase else None
+        label_prefix = phase_name or building_label
         unit_label = (
-            f"{building_label} · {asset.display_id}" if building_label else asset.display_id
+            f"{label_prefix} · {asset.display_id}" if label_prefix else asset.display_id
         )
         market = asset.sales_market.value if asset.sales_market else None
         items.append(
@@ -723,6 +1261,8 @@ def get_units(
                 "id": str(asset.id),
                 "unit": asset.display_id,
                 "unit_label": unit_label,
+                "phase_id": str(asset.phase_id) if getattr(asset, "phase_id", None) else None,
+                "phase_name": phase_name,
                 "building_id": str(asset.building_id) if asset.building_id else None,
                 "building_code": building.code if building else None,
                 "building_label": building_label,
@@ -740,6 +1280,14 @@ def get_units(
                 "leasing_status": asset.leasing_status.value,
                 "reservation_status": asset.reservation_status.value,
                 "price": asset.list_price if can_view_list_price else None,
+                "sale_amount": sale_facts.get(asset.id, {}).get("sale") if financial_access else None,
+                "sale_amount_available": financial_access and sale_facts.get(asset.id, {}).get("sale") is not None,
+                "collected_amount": (
+                    sale_facts.get(asset.id, {}).get("collected") if financial_access else None
+                ),
+                "collected_available": financial_access
+                and sale_facts.get(asset.id, {}).get("collected") is not None,
+                "payment_plan": sale_facts.get(asset.id, {}).get("plan") if financial_access else None,
                 "price_available": can_view_list_price and asset.list_price is not None,
                 "rent": None,
                 "rent_available": False,
@@ -756,6 +1304,7 @@ def get_units(
     return ProjectUnitsResponse(
         summary={
             "total_units": metric(inventory["total_assets"]),
+            "total_list_value": list_value,
             "total_physical_units": metric(allocation["total_physical_units"]),
             "turkey_allocation": metric(allocation["turkey_allocation"]),
             "usa_allocation": metric(allocation["usa_allocation"]),
@@ -949,8 +1498,11 @@ def get_leasing(db: Session, user: User, project_id: UUID) -> ProjectLeasingResp
     )
 
 
-def get_investors(db: Session, user: User, project_id: UUID) -> ProjectInvestorsResponse:
+def get_investors(
+    db: Session, user: User, project_id: UUID, phase_id: UUID | None = None
+) -> ProjectInvestorsResponse:
     project = _load_project(db, project_id)
+    phase_id = operational_phase_id(uses_phases=project.uses_phases, phase_id=phase_id)
     financial_access = _can_view_financial(user)
     rows = db.execute(
         select(FundingCommitment, Investor)
@@ -958,6 +1510,7 @@ def get_investors(db: Session, user: User, project_id: UUID) -> ProjectInvestors
         .where(
             FundingCommitment.project_id == project.id,
             operational_child_clause(FundingCommitment.is_demo, FundingCommitment.project_id),
+            *([FundingCommitment.phase_id == phase_id] if phase_id is not None else []),
         )
         .order_by(FundingCommitment.updated_at.desc())
     ).all()
@@ -974,6 +1527,7 @@ def get_investors(db: Session, user: User, project_id: UUID) -> ProjectInvestors
                     commitment.commitment_type.value if commitment.commitment_type else None
                 ),
                 "committed_amount": commitment.committed_amount if financial_access else None,
+                "contracted_profit": commitment.contracted_profit if financial_access else None,
                 "funded_amount": commitment.funded_amount if financial_access else None,
                 "remaining_amount": commitment.remaining_amount if financial_access else None,
                 "ownership": None,
@@ -989,7 +1543,11 @@ def get_investors(db: Session, user: User, project_id: UUID) -> ProjectInvestors
 
     warnings = []
     if not items:
-        warnings.append("No investors linked via funding commitments.")
+        warnings.append(
+            "No funding commitments are recorded for this phase."
+            if phase_id is not None
+            else "No investors linked via funding commitments."
+        )
     if not financial_access:
         warnings.append("Financial commitment amounts are restricted.")
 

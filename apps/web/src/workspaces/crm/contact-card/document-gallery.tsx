@@ -20,6 +20,23 @@ import {
 import { useDocumentLabels } from '@/lib/i18n/document-labels';
 import { setCrmDocumentVisibility } from '@/workspaces/crm/api/contacts';
 
+const UPLOAD_ERROR_LABELS: Record<string, string> = {
+  'documents.errors.missing_extension': 'Dosya türü anlaşılamadı',
+  'documents.errors.blocked_type': 'Bu dosya türü engellendi',
+  'documents.errors.unsupported_type': 'Desteklenmeyen dosya türü',
+  'documents.errors.unknown_type': 'Dosya türü tanınmadı',
+  'documents.errors.content_mismatch': 'Dosya içeriği uzantı ile uyuşmuyor',
+  'documents.errors.mime_mismatch': 'Dosya türü uyuşmuyor',
+  'documents.errors.empty_file': 'Dosya boş',
+  'documents.errors.file_too_large': 'Dosya çok büyük',
+  'documents.errors.upload_failed': 'Yükleme başarısız',
+};
+
+function uploadErrorLabel(code: string | null | undefined): string {
+  if (!code) return 'Yükleme başarısız';
+  return UPLOAD_ERROR_LABELS[code] || code;
+}
+
 export type GalleryDocument = {
   id: string;
   title: string;
@@ -186,9 +203,6 @@ export function DocumentGallery({
   const [editType, setEditType] = useState<DocumentType>('other');
   const [editCategory, setEditCategory] = useState('');
   const [editDescription, setEditDescription] = useState('');
-  const [uploadTitle, setUploadTitle] = useState('');
-  const [uploadType, setUploadType] = useState<DocumentType>('other');
-  const [uploadDescription, setUploadDescription] = useState('');
   const [uploading, setUploading] = useState(false);
   const unique = useMemo(() => dedupeGalleryDocuments(documents), [documents]);
   const visible = unique.filter((item) => showHidden || !item.hidden_from_view);
@@ -223,19 +237,22 @@ export function DocumentGallery({
     setError(null);
     try {
       const results = await uploadDocuments(Array.from(fileList), {
-        title: uploadTitle.trim() || undefined,
-        document_type: uploadType,
-        description: uploadDescription.trim() || undefined,
+        document_type: 'other',
       });
+      const failures: string[] = [];
       for (const result of results) {
         if (!result.success || !result.document) {
-          throw new Error(t('uploadFailed'));
+          failures.push(`${result.file_name}: ${uploadErrorLabel(result.error)}`);
+          continue;
         }
-        await linkDocument(result.document.id, entityType, entityId);
+        try {
+          await linkDocument(result.document.id, entityType, entityId);
+        } catch {
+          failures.push(`${result.file_name}: ${t('uploadFailed')}`);
+        }
       }
-      setUploadTitle('');
-      setUploadDescription('');
-      onChanged();
+      if (failures.length) setError(failures.join(' · '));
+      if (results.some((result) => result.success && result.document)) onChanged();
     } catch {
       setError(t('uploadFailed'));
     } finally {
@@ -290,35 +307,15 @@ export function DocumentGallery({
                 event.currentTarget.value = '';
               }}
             />
-            <span>{uploading ? tCommon('loading') : t('upload')}</span>
+            <span>{uploading ? tCommon('loading') : 'Belge Ekle'}</span>
           </label>
         ) : null}
-        <Button type="button" size="sm" variant="secondary" onClick={() => setShowHidden((value) => !value)}>
-          {showHidden ? t('hideHidden') : t('showHidden')}
-          {hiddenCount ? ` (${hiddenCount})` : ''}
-        </Button>
+        {hiddenCount ? (
+          <Button type="button" size="sm" variant="secondary" onClick={() => setShowHidden((value) => !value)}>
+            {showHidden ? t('hideHidden') : t('showHidden')} ({hiddenCount})
+          </Button>
+        ) : null}
       </div>
-      {canUpload ? (
-        <div className="crm-contact-card__panel-grid">
-          <Input label={t('documentName')} value={uploadTitle} onChange={(event) => setUploadTitle(event.target.value)} />
-          <Select
-            label={t('type')}
-            value={uploadType}
-            onChange={(event) => setUploadType(event.target.value as DocumentType)}
-          >
-            {DOCUMENT_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {getTypeLabel(type)}
-              </option>
-            ))}
-          </Select>
-          <TextArea
-            label={t('description')}
-            value={uploadDescription}
-            onChange={(event) => setUploadDescription(event.target.value)}
-          />
-        </div>
-      ) : null}
       {error ? <p className="crm-verify-detail__error">{error}</p> : null}
       {!visible.length ? <p>{t('empty')}</p> : null}
       <ul className="crm-doc-gallery__list">

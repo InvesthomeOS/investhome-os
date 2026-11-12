@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { notFound, redirect } from 'next/navigation';
 
 import { ProjectsDetailDsWorkspace } from '../../_components/ds/projects-detail-ds-workspace';
@@ -26,5 +27,9 @@ export default async function ProjectDetailTabPage({ params }: ProjectDetailTabP
     redirect(projectDetailHref(projectId, resolved));
   }
 
-  return <ProjectsDetailDsWorkspace projectId={projectId} tab={resolved} />;
+  return (
+    <Suspense fallback={null}>
+      <ProjectsDetailDsWorkspace projectId={projectId} tab={resolved} />
+    </Suspense>
+  );
 }

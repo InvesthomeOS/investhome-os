@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from investhome_api.api.deps.auth import require_permission
 from investhome_api.db.session import get_db
 from investhome_api.models.user_auth import User
+from investhome_api.schemas.crm_operations import CrmAgencyCustomerCreate, CrmPersonWrite
 from investhome_api.schemas.crm_agreements import (
     CrmAgreementOwnerAdd,
     CrmAgreementOwnerShares,
@@ -20,6 +21,11 @@ from investhome_api.services.crm.agreement_service import get_purchase_card
 from investhome_api.services.crm.known_crm_corrections import (
     apply_known_crm_corrections,
     preview_known_crm_corrections,
+)
+from investhome_api.services.crm.crm_operations import (
+    CrmOperationError,
+    create_agency_customer,
+    create_agent_contact,
 )
 from investhome_api.services.crm.relationship_corrections import (
     RelationshipCorrectionError,
@@ -119,7 +125,14 @@ def patch_agreement_unit(
 ) -> CrmPurchaseCard:
     _run(
         db,
-        lambda: change_agreement_unit(db, agreement_id, body.unit_number, actor=user),
+        lambda: change_agreement_unit(
+            db,
+            agreement_id,
+            body.unit_number,
+            actor=user,
+            phase_id=body.phase_id,
+            inventory_asset_id=body.inventory_asset_id,
+        ),
     )
     return _card(db, agreement_id)
 
@@ -147,6 +160,46 @@ def post_known_corrections(
         db.rollback()
         raise
     return {"results": results}
+
+
+def _person_payload(body: CrmPersonWrite) -> dict[str, object]:
+    return body.model_dump(exclude_none=False)
+
+
+@router.post("/agents", status_code=status.HTTP_201_CREATED)
+def post_create_agent(
+    body: CrmPersonWrite,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("crm", "create")),
+) -> dict[str, object]:
+    try:
+        contact, reused = create_agent_contact(db, actor=user, **_person_payload(body))
+        db.commit()
+    except CrmOperationError as exc:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return {"contact_id": str(contact.id), "display_name": contact.display_name, "reused_existing": reused}
+
+
+@router.post("/agency-customers", status_code=status.HTTP_201_CREATED)
+def post_create_agency_customer(
+    body: CrmAgencyCustomerCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("crm", "create")),
+) -> dict[str, object]:
+    person = body.model_dump(exclude={"agency_contact_id"})
+    try:
+        contact, reused = create_agency_customer(
+            db,
+            actor=user,
+            agency_contact_id=body.agency_contact_id,
+            **person,
+        )
+        db.commit()
+    except CrmOperationError as exc:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return {"contact_id": str(contact.id), "display_name": contact.display_name, "reused_existing": reused}
 
 
 @router.post("/agents/{contact_id}/archive")

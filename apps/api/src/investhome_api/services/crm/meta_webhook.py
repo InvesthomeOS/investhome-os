@@ -422,6 +422,9 @@ def _create_facebook_lead(db: Session, *, contact: CrmContact, psid: str, displa
     if contact.lead_id is None:
         contact.lead_id = lead.id
     db.flush()
+    from investhome_api.services.user_notifications import notify_new_lead
+
+    notify_new_lead(db, lead, contact_id=contact.id)
     return lead
 
 
@@ -667,6 +670,9 @@ def _create_instagram_lead(db: Session, *, contact: CrmContact, igsid: str, disp
     if contact.lead_id is None:
         contact.lead_id = lead.id
     db.flush()
+    from investhome_api.services.user_notifications import notify_new_lead
+
+    notify_new_lead(db, lead, contact_id=contact.id)
     return lead
 
 

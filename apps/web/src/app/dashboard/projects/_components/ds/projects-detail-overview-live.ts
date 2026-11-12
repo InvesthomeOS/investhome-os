@@ -229,6 +229,8 @@ export function overlayLocationIntelligence(
         kindEn: place.category,
         kindTr: place.category,
         distanceKm: place.straight_line_distance_meters / 1000,
+        walkMin: place.walking_duration_minutes,
+        rating: place.rating,
         lat: place.latitude,
         lng: place.longitude,
         address: place.address,

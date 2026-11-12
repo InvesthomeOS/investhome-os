@@ -47,19 +47,21 @@ test('crm.create controls Create Lead and column add', () => {
 })
 
 test('crm.update controls Lead edit', () => {
-  assert.match(leads, /\{canUpdate && drawer !== 'convert'[\s\S]*?data-testid="crm-leads-edit"/)
+  assert.match(leads, /canUpdate && selected\.stage !== 'converted'[\s\S]{0,280}crm-leads-edit/)
   assert.match(leadRoutes, /def update_lead_workspace\([\s\S]{0,240}require_permission\("crm", "update"\)/)
 })
 
 test('crm.update controls stage drag', () => {
   assert.match(leads, /canDrag=\{canUpdate && item\.stage !== 'converted'\}/)
-  assert.match(leads, /\{canUpdate && item\.stage !== 'converted' \?/)
+  assert.match(leads, /\{canUpdate && selected\.stage !== 'converted' \?/)
   assert.match(leadRoutes, /def move_lead_stage\([\s\S]{0,240}require_permission\("crm", "update"\)/)
 })
 
 test('lead conversion uses the update permission required by its API', () => {
   assert.match(leadRoutes, /def convert_lead_workspace\([\s\S]{0,280}require_permission\("crm", "update"\)/)
-  assert.match(leads, /\{canUpdate && selected\.stage !== 'converted' \?[\s\S]*?data-testid="crm-leads-convert"/)
+  assert.match(leads, /data-testid="crm-lead-stage-control"[\s\S]*?\{canUpdate && selected\.stage !== 'converted'/)
+  assert.match(leads, /next === 'converted'[\s\S]*?convertMutation\.mutate/)
+  assert.doesNotMatch(leads, /data-testid="crm-leads-convert"/)
   assert.doesNotMatch(leads, /\{canCreate && selected\.stage !== 'converted'/)
 })
 

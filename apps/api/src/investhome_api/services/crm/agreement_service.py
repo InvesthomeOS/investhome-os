@@ -126,8 +126,18 @@ def _agreement_has_unit_change(row: CrmAgreement, meta: dict[str, Any]) -> bool:
 
 
 def _display_stage(meta: dict[str, Any], live: dict[str, Any]) -> str | None:
-    label = str(meta.get("stage_label") or live.get("stage_label") or "").strip()
-    raw = str(meta.get("stage_id") or live.get("stage_id") or "").strip()
+    label = str(
+        meta.get("stage_label")
+        or live.get("stage_label")
+        or meta.get("bitrix_deal_stage_label")
+        or ""
+    ).strip()
+    raw = str(
+        meta.get("stage_id")
+        or live.get("stage_id")
+        or meta.get("bitrix_deal_stage")
+        or ""
+    ).strip()
     if not label:
         return None
     if label == raw:
@@ -220,20 +230,32 @@ def _parse_iso_date(value: Any) -> date | None:
         return None
 
 
+_CURRENCY_PREFIX = {
+    "USD": "$",
+    "$": "$",
+    "EUR": "€",
+    "GBP": "£",
+    "TRY": "₺",
+    "TL": "₺",
+}
+
+
 def format_money(amount: str | None, currency: str | None) -> str | None:
+    """Format a stored numeric amount. The symbol is display-only."""
     raw = str(amount or "").strip()
     if not raw:
         return None
     currency_code = str(currency or "").strip().upper()
     try:
-        number = Decimal(raw.replace(",", ""))
+        number = Decimal(raw.replace(",", "").replace("$", "").replace("€", "").replace("£", "").replace("₺", ""))
         formatted = (
             f"{int(number):,}" if number == number.to_integral_value() else f"{number:,.2f}"
         )
     except (InvalidOperation, ValueError):
         formatted = raw
-    if currency_code == "USD":
-        return f"${formatted} USD"
+    prefix = _CURRENCY_PREFIX.get(currency_code)
+    if prefix:
+        return f"{prefix}{formatted}"
     if currency_code:
         return f"{formatted} {currency_code}"
     return formatted
@@ -454,6 +476,7 @@ def serialize_agreement(
         owners_label=owners,
         bitrix_deal_id=deal_id,
         amount_label=format_money(amount, currency) if amount else None,
+        currency=str(currency).strip().upper() if currency else None,
         stage_label=stage_label,
         hemen_kira=bool(getattr(row, "hemen_kira", False)),
         responsible_name=agreement_responsible_name(meta, live, participant_rows),
@@ -521,13 +544,29 @@ def _json_path_text(*keys: str):
 def _stage_label_sql():
     meta = _json_path_text("stage_label")
     live = _json_path_text("bitrix_live", "stage_label")
-    return func.trim(func.coalesce(func.nullif(meta, ""), live, ""))
+    legacy = _json_path_text("bitrix_deal_stage_label")
+    return func.trim(
+        func.coalesce(
+            func.nullif(meta, ""),
+            func.nullif(live, ""),
+            legacy,
+            "",
+        )
+    )
 
 
 def _stage_id_sql():
     meta = _json_path_text("stage_id")
     live = _json_path_text("bitrix_live", "stage_id")
-    return func.trim(func.coalesce(func.nullif(meta, ""), live, ""))
+    legacy = _json_path_text("bitrix_deal_stage")
+    return func.trim(
+        func.coalesce(
+            func.nullif(meta, ""),
+            func.nullif(live, ""),
+            legacy,
+            "",
+        )
+    )
 
 
 def _responsible_sql():
@@ -686,7 +725,11 @@ def _default_list_visibility():
             historical_text.notin_(("0", "0.0", "false", "null", "none")),
         ),
     )
-    return and_(~historical, _json_flag_is_clear("relationship_detached"))
+    return and_(
+        ~historical,
+        _json_flag_is_clear("relationship_detached"),
+        CrmAgreement.status != CrmAgreementStatus.CANCELLED,
+    )
 
 
 def _agreement_list_order(sort_by: str, sort_dir: str):
@@ -718,6 +761,7 @@ def _agreement_filters(
     status: CrmAgreementStatus | None = None,
     contact_id: UUID | None = None,
     search: str | None = None,
+    phase_id: UUID | None = None,
 ) -> list:
     """Shared visibility and list filters. Status replaces the default visibility rule."""
     filters = []
@@ -729,6 +773,8 @@ def _agreement_filters(
         filters.append(_default_list_visibility())
     if contact_id is not None:
         filters.append(CrmAgreement.contact_id == contact_id)
+    if phase_id is not None:
+        filters.append(CrmAgreement.phase_id == phase_id)
     needle = (search or "").strip()
     if needle:
         like = f"%{needle}%"
@@ -763,6 +809,7 @@ def _filtered_agreements(
     status: CrmAgreementStatus | None = None,
     contact_id: UUID | None = None,
     search: str | None = None,
+    phase_id: UUID | None = None,
 ):
     return select(CrmAgreement).where(
         *_agreement_filters(
@@ -770,6 +817,7 @@ def _filtered_agreements(
             status=status,
             contact_id=contact_id,
             search=search,
+            phase_id=phase_id,
         )
     )
 
@@ -795,6 +843,15 @@ def _summaries_for_rows(db: Session, rows: list[CrmAgreement]) -> list[CrmAgreem
         )
     for row in [*rows, *historical_rows]:
         siblings_by_key[(row.contact_id, row.project_group)].append(row)
+    phase_ids = {row.phase_id for row in rows if getattr(row, "phase_id", None)}
+    phase_names: dict[UUID, str] = {}
+    if phase_ids:
+        from investhome_api.models.inventory import ProjectPhase
+
+        phase_names = {
+            phase.id: phase.name
+            for phase in db.scalars(select(ProjectPhase).where(ProjectPhase.id.in_(phase_ids))).all()
+        }
     items = [
         serialize_agreement(
             row,
@@ -807,6 +864,10 @@ def _summaries_for_rows(db: Session, rows: list[CrmAgreement]) -> list[CrmAgreem
         for row in rows
     ]
     for item, row in zip(items, rows, strict=True):
+        phase_name = phase_names.get(row.phase_id) if getattr(row, "phase_id", None) else None
+        item.phase_id = row.phase_id
+        item.phase_name = phase_name
+        item.unit_display = agreement_unit_display(db, row) if getattr(row, "inventory_asset_id", None) else None
         _apply_agreement_list_value_display(
             item, row, siblings_by_key.get((row.contact_id, row.project_group), [])
         )
@@ -824,6 +885,7 @@ def list_agreements(
     status: CrmAgreementStatus | None = None,
     contact_id: UUID | None = None,
     search: str | None = None,
+    phase_id: UUID | None = None,
     sort_by: str = "agreement_date",
     sort_dir: str = "desc",
     page: int = 1,
@@ -834,6 +896,7 @@ def list_agreements(
         status=status,
         contact_id=contact_id,
         search=search,
+        phase_id=phase_id,
     )
     total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
     rows = list(
@@ -976,6 +1039,7 @@ def agreement_board(
     status: CrmAgreementStatus | None = None,
     contact_id: UUID | None = None,
     search: str | None = None,
+    phase_id: UUID | None = None,
     stage: str | None = None,
     responsible: str | None = None,
     page_size: int = BOARD_CARD_PAGE_SIZE,
@@ -986,6 +1050,7 @@ def agreement_board(
         status=status,
         contact_id=contact_id,
         search=search,
+        phase_id=phase_id,
     )
     option_rows = _stage_pair_rows(db, base)
     option_counts = _fold_stage_counts(option_rows)
@@ -1043,6 +1108,7 @@ def agreement_board_cards(
     status: CrmAgreementStatus | None = None,
     contact_id: UUID | None = None,
     search: str | None = None,
+    phase_id: UUID | None = None,
     responsible: str | None = None,
     page: int = 1,
     page_size: int = BOARD_CARD_PAGE_SIZE,
@@ -1052,6 +1118,7 @@ def agreement_board_cards(
         status=status,
         contact_id=contact_id,
         search=search,
+        phase_id=phase_id,
     )
     selected = (responsible or "").strip()
     if selected:
@@ -1324,6 +1391,7 @@ def serialize_purchase_summary(
     *,
     contact: CrmContact | None,
     participants: list[tuple[CrmAgreementParticipant, CrmContact]],
+    db: Session | None = None,
 ) -> CrmPurchaseSummary:
     meta = _meta(row)
     deal_id = deal_id_for_agreement(row.id, meta)
@@ -1358,12 +1426,24 @@ def serialize_purchase_summary(
     ]
     stage_label = _display_stage(meta, live)
     change_status = str(meta.get("unit_change_status") or "").strip() or None
+    phase_name = None
+    unit_display = None
+    if db is not None and not historical:
+        if getattr(row, "phase_id", None):
+            from investhome_api.models.inventory import ProjectPhase
+
+            phase = db.get(ProjectPhase, row.phase_id)
+            phase_name = phase.name if phase is not None else None
+        if getattr(row, "inventory_asset_id", None):
+            unit_display = agreement_unit_display(db, row)
     return CrmPurchaseSummary(
         agreement_id=row.id,
         bitrix_deal_id=deal_id,
         project_group=row.project_group,
         project_label=_project_label(row.project_group, meta),
         unit_number=row.unit_number,
+        phase_name=phase_name,
+        unit_display=unit_display,
         amount=amount,
         currency=currency,
         amount_label=format_money(amount, currency),
@@ -1534,6 +1614,7 @@ def list_contact_purchases(db: Session, contact_id: UUID) -> list[CrmPurchaseSum
             row,
             contact=contacts.get(row.contact_id),
             participants=participants_map.get(row.id, []),
+            db=db,
         )
         for row in rows
     ]
@@ -1816,7 +1897,7 @@ def get_purchase_card(
     contact = db.get(CrmContact, row.contact_id)
     participants = _load_participants_map(db, {row.id}).get(row.id, [])
     siblings = _contact_project_agreements(db, row.contact_id, row.project_group)
-    summary = serialize_purchase_summary(row, contact=contact, participants=participants)
+    summary = serialize_purchase_summary(row, contact=contact, participants=participants, db=db)
     sources = _apply_unit_change_value_display(summary, row, siblings)
     owner_rows = _participant_summaries(participants)
     contact_ids = {row.contact_id, *(item.contact_id for item in owner_rows)}
@@ -1928,6 +2009,10 @@ def get_purchase_card(
         project_group=row.project_group,
         project_label=summary.project_label,
         unit_number=row.unit_number,
+        phase_id=getattr(row, "phase_id", None),
+        phase_name=summary.phase_name,
+        inventory_asset_id=getattr(row, "inventory_asset_id", None),
+        unit_display=agreement_unit_display(db, row),
         amount=summary.amount,
         currency=summary.currency,
         amount_label=summary.amount_label,
@@ -1959,6 +2044,11 @@ def get_purchase_card(
         extra_fields=extra_fields,
         hemen_kira=bool(getattr(row, "hemen_kira", False)),
         unit_history=unit_history,
+        cancelled_at=getattr(row, "cancelled_at", None),
+        cancellation_reason=getattr(row, "cancellation_reason", None),
+        cancellation_note=getattr(row, "cancellation_note", None),
+        pipeline_return_stage=getattr(row, "pipeline_return_stage", None),
+        pipeline_returned_at=getattr(row, "pipeline_returned_at", None),
     )
 
 
@@ -2335,3 +2425,421 @@ def list_purchase_calendar(
             )
     items.sort(key=lambda item: (item.date, item.title))
     return items
+
+
+STORED_AGREEMENT_STAGES: dict[str, str] = {
+    "Kimlik Bilgileri Süreci": "Kimlik Bilgileri",
+    "Kimlik Bilgileri": "Kimlik Bilgileri",
+    "Satış Sözleşmesi Süreci": "Satış Sözleşmesi",
+    "Satış Sözleşmesi": "Satış Sözleşmesi",
+    "DocuSign": "Docusign",
+    "Docusign": "Docusign",
+    "Para Transfer Süreci": "Para Transferi",
+    "Para Transferi": "Para Transferi",
+    "Ev Teslim Süreci": "Ev Teslim Süreci",
+}
+DEFAULT_AGREEMENT_STAGE = "Kimlik Bilgileri"
+
+
+def canonical_agreement_stage(raw: str | None) -> str:
+    text = (raw or "").strip()
+    if not text:
+        return DEFAULT_AGREEMENT_STAGE
+    mapped = STORED_AGREEMENT_STAGES.get(text)
+    if mapped:
+        return mapped
+    normalized = normalize_agreement_stage(text, "")
+    mapped = STORED_AGREEMENT_STAGES.get(normalized)
+    if mapped:
+        return mapped
+    raise ValueError("crm.agreements.errors.invalid_stage")
+
+
+def set_agreement_stage(row: CrmAgreement, stage_label: str) -> str:
+    """Write the CRM stage label without rewriting historical Bitrix metadata."""
+    stored = canonical_agreement_stage(stage_label)
+    meta = dict(_meta(row))
+    meta["stage_label"] = stored
+    row.metadata_json = meta
+    flag_modified(row, "metadata_json")
+    return stored
+
+
+def _unit_key(value: str | None) -> str:
+    return re.sub(r"\s+", "", (value or "").strip()).casefold()
+
+
+def find_duplicate_agreement(
+    db: Session,
+    *,
+    contact_id: UUID,
+    project_group: str,
+    unit_number: str | None,
+    source_lead_id: UUID | None = None,
+    phase_id: UUID | None = None,
+    inventory_asset_id: UUID | None = None,
+) -> CrmAgreement | None:
+    rows = list(
+        db.scalars(
+            select(CrmAgreement).where(
+                CrmAgreement.contact_id == contact_id,
+                CrmAgreement.project_group == project_group,
+                CrmAgreement.status != CrmAgreementStatus.CANCELLED,
+            )
+        ).all()
+    )
+    unit = _unit_key(unit_number)
+    lead_key = str(source_lead_id) if source_lead_id else ""
+    for row in rows:
+        meta = _meta(row)
+        same_lead = bool(lead_key) and str(meta.get("source_lead_id") or "") == lead_key
+        same_unit = bool(unit) and _unit_key(row.unit_number) == unit
+        if same_lead and (not unit or same_unit or not _unit_key(row.unit_number)):
+            return row
+        if same_unit:
+            if phase_id is not None and row.phase_id is not None and row.phase_id != phase_id:
+                continue
+            if (
+                inventory_asset_id is not None
+                and row.inventory_asset_id is not None
+                and row.inventory_asset_id != inventory_asset_id
+            ):
+                continue
+            return row
+    if lead_key and not unit:
+        for row in rows:
+            if str(_meta(row).get("source_lead_id") or "") == lead_key:
+                return row
+    return None
+
+
+def _ensure_buyer_role(contact: CrmContact) -> None:
+    types = {contact.contact_type}
+    for assignment in list(getattr(contact, "type_assignments", None) or []):
+        types.add(assignment.contact_type)
+    if CrmContactType.BUYER in types:
+        return
+    contact.type_assignments.append(
+        CrmContactTypeAssignment(contact_type=CrmContactType.BUYER, is_primary=False)
+    )
+
+
+def create_manual_agreement(
+    db: Session,
+    *,
+    contact: CrmContact,
+    project_group: str,
+    unit_number: str | None,
+    investment_amount: str | None,
+    agreement_date: date | None,
+    source_lead_id: UUID | None = None,
+    stage_label: str | None = None,
+    actor=None,
+    phase_id: UUID | None = None,
+    inventory_asset_id: UUID | None = None,
+) -> tuple[CrmAgreement, bool]:
+    group = (project_group or "").strip()
+    if group not in {item.value for item in BitrixProjectGroup}:
+        raise ValueError("crm.agreements.errors.invalid_project")
+    amount = _normalize_agreement_amount(investment_amount) if investment_amount else None
+    existing = find_duplicate_agreement(
+        db,
+        contact_id=contact.id,
+        project_group=group,
+        unit_number=unit_number,
+        source_lead_id=source_lead_id,
+        phase_id=phase_id,
+        inventory_asset_id=inventory_asset_id,
+    )
+    if existing is not None:
+        # Reuse leaves the stored unit snapshot and every other agreement untouched.
+        return existing, True
+    from investhome_api.services.crm.bitrix_project_aliases import load_project_ids_by_name, resolve_project_alias
+    from investhome_api.services.crm.unit_link import assert_unit_open_for_sale, resolve_agreement_unit
+
+    resolved = resolve_project_alias(group, project_ids_by_name=load_project_ids_by_name(db))
+    linked_unit, linked_phase_id, linked_asset_id = resolve_agreement_unit(
+        db,
+        project_id=resolved.project_id,
+        unit_number=unit_number,
+        phase_id=phase_id,
+        inventory_asset_id=inventory_asset_id,
+    )
+    assert_unit_open_for_sale(db, linked_asset_id)
+    stored_stage = canonical_agreement_stage(stage_label)
+    meta: dict[str, Any] = {
+        "stage_label": stored_stage,
+        "origin": "crm",
+    }
+    if source_lead_id is not None:
+        meta["source_lead_id"] = str(source_lead_id)
+    if amount:
+        meta["opportunity"] = amount
+        meta["investment_amount"] = amount
+        if group != BitrixProjectGroup.REIT.value:
+            meta["purchase_price"] = amount
+    row = CrmAgreement(
+        contact_id=contact.id,
+        project_id=resolved.project_id,
+        project_group=group,
+        source="manual",
+        source_external_id=None,
+        status=CrmAgreementStatus.ACTIVE,
+        agreement_date=agreement_date,
+        unit_number=linked_unit,
+        phase_id=linked_phase_id,
+        inventory_asset_id=linked_asset_id,
+        investment_amount=amount,
+        review_required=False,
+        metadata_json=meta,
+    )
+    db.add(row)
+    db.flush()
+    db.add(
+        CrmAgreementParticipant(
+            agreement_id=row.id,
+            contact_id=contact.id,
+            role="buyer",
+            ownership_pct=Decimal("100"),
+            is_primary=True,
+            source="manual",
+        )
+    )
+    _ensure_buyer_role(contact)
+    db.flush()
+    if actor is not None:
+        from investhome_api.services.user_notifications import notify_agreement_created
+
+        notify_agreement_created(
+            db,
+            row,
+            actor=actor,
+            contact_name=getattr(contact, "display_name", None),
+            contact_id=contact.id,
+        )
+    return row, False
+
+
+def format_linked_unit(
+    *,
+    project_name: str | None,
+    phase_name: str | None,
+    unit_number: str | None,
+    legacy_text: str | None = None,
+) -> str | None:
+    """Compose a display label from linked names. Legacy text is left unchanged."""
+    identifier = " ".join(str(unit_number or "").split())
+    if not identifier:
+        legacy = " ".join(str(legacy_text or "").split())
+        return legacy or None
+    parts = [part.strip() for part in (project_name, phase_name, identifier) if part and str(part).strip()]
+    return " · ".join(parts)
+
+
+def agreement_unit_display(db: Session, row: CrmAgreement) -> str | None:
+    """Live label when the agreement points at a unit. Otherwise the stored snapshot."""
+    legacy = (row.unit_number or "").strip() or None
+    asset_id = getattr(row, "inventory_asset_id", None)
+    if asset_id is None:
+        return legacy
+    from investhome_api.models.inventory import InventoryAsset, ProjectPhase
+    from investhome_api.models.project import Project
+
+    asset = db.get(InventoryAsset, asset_id)
+    if asset is None:
+        return legacy
+    phase_name = None
+    if asset.phase_id is not None:
+        phase = db.get(ProjectPhase, asset.phase_id)
+        phase_name = phase.name if phase is not None else None
+    project = db.get(Project, asset.project_id)
+    return format_linked_unit(
+        project_name=project.project_name if project is not None else None,
+        phase_name=phase_name,
+        unit_number=asset.display_id,
+        legacy_text=legacy,
+    )
+
+
+def list_project_unit_catalog(db: Session, project_group: str, phase_id: UUID | None = None) -> dict[str, list[dict[str, str]]]:
+    group = (project_group or "").strip()
+    from investhome_api.models.inventory import InventoryAsset, ProjectPhase
+    from investhome_api.models.project import Project
+    from investhome_api.services.crm.bitrix_project_aliases import load_project_ids_by_name, resolve_project_alias
+
+    direct_project_id = None
+    try:
+        direct_project_id = UUID(group)
+    except ValueError:
+        direct_project_id = None
+    if direct_project_id is None and group not in {item.value for item in BitrixProjectGroup}:
+        return {"phases": [], "items": []}
+    resolved = resolve_project_alias(group, project_ids_by_name=load_project_ids_by_name(db))
+    if direct_project_id is not None and db.get(Project, direct_project_id) is not None:
+        from dataclasses import replace
+
+        resolved = replace(resolved, project_id=direct_project_id)
+    project = db.get(Project, resolved.project_id) if resolved.project_id else None
+    uses_phases = bool(getattr(project, "uses_phases", False))
+    phases: list[dict[str, str]] = []
+    phase_names: dict[UUID, str] = {}
+    items: list[dict[str, str]] = []
+    if resolved.project_id is not None:
+        phase_rows = list(
+            db.scalars(
+                select(ProjectPhase)
+                .where(ProjectPhase.project_id == resolved.project_id, ProjectPhase.active.is_(True))
+                .order_by(ProjectPhase.display_order.asc(), ProjectPhase.name.asc())
+            ).all()
+        )
+        if not uses_phases:
+            phase_id = None
+            phase_rows = []
+        phase_names = {row.id: row.name for row in phase_rows}
+        phases = [
+            {"id": str(row.id), "name": row.name, "display_order": str(row.display_order)}
+            for row in phase_rows
+        ]
+        if uses_phases and not phase_rows:
+            return {"phases": [], "items": [], "uses_phases": True, "phase_ready": False}
+        asset_query = select(InventoryAsset).where(InventoryAsset.project_id == resolved.project_id)
+        if phase_id is not None:
+            asset_query = asset_query.where(InventoryAsset.phase_id == phase_id)
+        from investhome_api.models.inventory import Building, Floor
+
+        for asset in db.scalars(asset_query.order_by(InventoryAsset.display_id.asc())).all():
+            phase_name = phase_names.get(asset.phase_id) if asset.phase_id else None
+            identifier = asset.display_id
+            label = f"{phase_name} · {identifier}" if phase_name else identifier
+            building = db.get(Building, asset.building_id) if asset.building_id else None
+            floor = db.get(Floor, asset.floor_id) if asset.floor_id else None
+            items.append(
+                {
+                    "id": str(asset.id),
+                    "unit_number": identifier,
+                    "label": label,
+                    "phase_id": str(asset.phase_id) if asset.phase_id else "",
+                    "phase_name": phase_name or "",
+                    "inventory_asset_id": str(asset.id),
+                    "building": getattr(building, "name", None) or getattr(building, "code", None) or "",
+                    "floor": getattr(floor, "level_code", None) or getattr(floor, "name", None) or "",
+                    "bedrooms": str(asset.bedrooms) if asset.bedrooms is not None else "",
+                    "bathrooms": str(asset.bathrooms) if asset.bathrooms is not None else "",
+                    "area_sqft": str(asset.interior_area_sqft) if asset.interior_area_sqft is not None else "",
+                    "sales_status": asset.sales_status.value if asset.sales_status else "",
+                    "list_price": str(asset.list_price) if asset.list_price is not None else "",
+                    "currency": asset.currency or "",
+                }
+            )
+    if phase_id is None and not uses_phases:
+        legacy = db.scalars(
+            select(CrmAgreement.unit_number)
+            .where(
+                CrmAgreement.project_group == group,
+                CrmAgreement.unit_number.is_not(None),
+            )
+            .distinct()
+        ).all()
+        known = {item["unit_number"].casefold() for item in items}
+        for raw in legacy:
+            text = str(raw or "").strip()
+            if not text or text.casefold() in known:
+                continue
+            known.add(text.casefold())
+            items.append(
+                {
+                    "id": text,
+                    "unit_number": text,
+                    "label": text,
+                    "phase_id": "",
+                    "phase_name": "",
+                    "inventory_asset_id": "",
+                }
+            )
+    items.sort(key=lambda item: (item["phase_name"].casefold(), item["unit_number"].casefold()))
+    return {"phases": phases, "items": items, "uses_phases": uses_phases, "phase_ready": not uses_phases or bool(phases)}
+
+
+def list_project_units(db: Session, project_group: str) -> list[dict[str, str]]:
+    return list_project_unit_catalog(db, project_group)["items"]
+
+
+def cancel_agreement(
+    db: Session,
+    user,
+    agreement: CrmAgreement,
+    *,
+    reason: str,
+    note: str | None = None,
+    cancelled_on: date | None = None,
+    release_unit: bool = True,
+) -> CrmAgreement:
+    """Keep the agreement and mark it cancelled. Release the unit only when nothing else holds it."""
+    from investhome_api.models.inventory import InventoryAsset, InventorySalesStatus
+    from investhome_api.models.inventory_workflows import InventoryOwnership, OwnershipRecordStatus
+
+    text = (reason or "").strip()
+    if not text:
+        raise ValueError("İptal nedeni gerekli")
+    if agreement.status == CrmAgreementStatus.CANCELLED:
+        raise ValueError("Anlaşma zaten iptal")
+    agreement.status = CrmAgreementStatus.CANCELLED
+    agreement.cancellation_reason = text
+    agreement.cancellation_note = (note or "").strip() or None
+    agreement.cancelled_by = user.id
+    when = datetime.now(UTC)
+    if cancelled_on is not None:
+        when = datetime(cancelled_on.year, cancelled_on.month, cancelled_on.day, tzinfo=UTC)
+    agreement.cancelled_at = when
+    if release_unit and agreement.inventory_asset_id is not None:
+        others = db.scalar(
+            select(func.count()).select_from(CrmAgreement).where(
+                CrmAgreement.inventory_asset_id == agreement.inventory_asset_id,
+                CrmAgreement.id != agreement.id,
+                CrmAgreement.status != CrmAgreementStatus.CANCELLED,
+            )
+        ) or 0
+        if others == 0:
+            asset = db.get(InventoryAsset, agreement.inventory_asset_id)
+            if asset is not None and asset.sales_status in {
+                InventorySalesStatus.SOLD,
+                InventorySalesStatus.UNDER_CONTRACT,
+            }:
+                asset.sales_status = InventorySalesStatus.AVAILABLE_FOR_SALE
+            for row in db.scalars(
+                select(InventoryOwnership).where(
+                    InventoryOwnership.inventory_asset_id == agreement.inventory_asset_id,
+                    InventoryOwnership.status == OwnershipRecordStatus.ACTIVE,
+                )
+            ).all():
+                row.status = OwnershipRecordStatus.HISTORICAL
+    db.flush()
+    return agreement
+
+
+def return_agreement_to_pipeline(db: Session, user, agreement: CrmAgreement, *, stage: str) -> CrmAgreement:
+    """Reopen the existing lead at the chosen stage. Never creates a person or a lead."""
+    from investhome_api.models.lead import Lead
+    from investhome_api.services.crm.crm_lead_service import STAGE_TO_STATUS
+
+    del user
+    chosen = (stage or "").strip()
+    if chosen not in STAGE_TO_STATUS or chosen == "converted":
+        raise ValueError("Pipeline aşaması seçin")
+    if agreement.status != CrmAgreementStatus.CANCELLED:
+        raise ValueError("Önce anlaşma iptal edilmeli")
+    if agreement.pipeline_returned_at is not None:
+        raise ValueError("Pipeline kaydı zaten geri döndü")
+    lead = db.scalar(
+        select(Lead)
+        .where(Lead.converted_contact_id == agreement.contact_id)
+        .order_by(Lead.updated_at.desc())
+    )
+    if lead is None:
+        raise ValueError("Bu kişiye bağlı pipeline kaydı yok")
+    lead.status = STAGE_TO_STATUS[chosen]
+    lead.archived_at = None
+    agreement.pipeline_return_stage = chosen
+    agreement.pipeline_returned_at = datetime.now(UTC)
+    db.flush()
+    return agreement

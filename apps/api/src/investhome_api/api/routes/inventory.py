@@ -20,6 +20,7 @@ from investhome_api.models.inventory import (
     Floor,
     InventoryAsset,
     InventoryAssetType,
+    ProjectPhase,
     InventorySalesStatus,
     LeasingStatus,
     ReservationStatus,
@@ -45,6 +46,10 @@ from investhome_api.schemas.inventory import (
     InventoryAssetStatusHistoryResponse,
     InventoryAssetStatusUpdate,
     InventoryAssetUpdate,
+    ProjectPhaseCreate,
+    ProjectPhaseReorder,
+    ProjectPhaseResponse,
+    ProjectPhaseUpdate,
 )
 from investhome_api.services.activity_recorder import (
     activity_context_from_request,
@@ -60,6 +65,7 @@ from investhome_api.services.inventory.status_service import (
     update_asset_status,
 )
 from investhome_api.services.inventory.system_code_service import generate_system_code
+from investhome_api.services.inventory.phase_identity import operational_phase_id
 from investhome_api.services.inventory.validation_service import (
     InventoryConflictError,
     InventoryValidationError,
@@ -530,6 +536,7 @@ def _apply_asset_filters(
     query,
     *,
     project_id: UUID | None,
+    phase_id: UUID | None,
     building_id: UUID | None,
     floor_id: UUID | None,
     asset_type: InventoryAssetType | None,
@@ -548,6 +555,8 @@ def _apply_asset_filters(
         query = query.where(InventoryAsset.archived_at.is_(None))
     if project_id is not None:
         query = query.where(InventoryAsset.project_id == project_id)
+    if phase_id is not None:
+        query = query.where(InventoryAsset.phase_id == phase_id)
     if building_id is not None:
         query = query.where(InventoryAsset.building_id == building_id)
     if floor_id is not None:
@@ -596,6 +605,7 @@ def _apply_asset_filters(
 @router.get("/assets", response_model=InventoryAssetListResponse)
 def list_assets(
     project_id: UUID | None = None,
+    phase_id: UUID | None = None,
     building_id: UUID | None = None,
     floor_id: UUID | None = None,
     asset_type: InventoryAssetType | None = None,
@@ -616,6 +626,12 @@ def list_assets(
     db: Session = Depends(get_db),
     _user: User = Depends(require_permission("inventory", "view")),
 ) -> InventoryAssetListResponse:
+    if project_id is not None:
+        project = db.get(Project, project_id)
+        phase_id = operational_phase_id(
+            uses_phases=bool(project and project.uses_phases),
+            phase_id=phase_id,
+        )
     sort_columns = {
         "display_id": InventoryAsset.display_id,
         "system_code": InventoryAsset.system_code,
@@ -629,6 +645,7 @@ def list_assets(
     query = _apply_asset_filters(
         query,
         project_id=project_id,
+        phase_id=phase_id,
         building_id=building_id,
         floor_id=floor_id,
         asset_type=asset_type,
@@ -690,11 +707,19 @@ def create_asset(
         raise _validation_http_error(exc) from exc
 
     try:
+        if payload.phase_id is not None:
+            phase = db.get(ProjectPhase, payload.phase_id)
+            if phase is None or phase.project_id != payload.project_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="inventory.errors.phase_project_mismatch",
+                )
         assert_unique_display_identity(
             db,
             project_id=payload.project_id,
             building_id=payload.building_id,
             display_id=payload.display_id,
+            phase_id=payload.phase_id,
         )
     except InventoryConflictError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=exc.error_key) from exc
@@ -755,6 +780,17 @@ def update_asset(
     floor_id = updates.get("floor_id", asset.floor_id)
     asset_type = updates.get("asset_type", asset.asset_type)
     usage_type = updates.get("usage_type", asset.usage_type)
+    next_project_id = updates.get("project_id", asset.project_id)
+    if "project_id" in updates and db.get(Project, next_project_id) is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="inventory.errors.project_not_found")
+    next_phase_id = updates.get("phase_id", asset.phase_id)
+    if next_phase_id is not None:
+        phase = db.get(ProjectPhase, next_phase_id)
+        if phase is None or phase.project_id != next_project_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="inventory.errors.phase_project_mismatch",
+            )
 
     try:
         validate_asset_update(
@@ -764,6 +800,7 @@ def update_asset(
             floor_id=floor_id,
             asset_type=asset_type if "asset_type" in updates else None,
             usage_type=usage_type if "usage_type" in updates else None,
+            project_id=next_project_id,
         )
     except InventoryValidationError as exc:
         raise _validation_http_error(exc) from exc
@@ -772,9 +809,10 @@ def update_asset(
     try:
         assert_unique_display_identity(
             db,
-            project_id=asset.project_id,
+            project_id=next_project_id,
             building_id=building_id,
             display_id=next_display_id,
+            phase_id=next_phase_id,
             exclude_asset_id=asset.id,
         )
     except InventoryConflictError as exc:
@@ -923,3 +961,106 @@ def get_asset_status_history(
     _get_asset_or_404(asset_id, db, include_archived=True)
     history = list_status_history(db, asset_id, category=status_category)
     return [InventoryAssetStatusHistoryResponse.model_validate(row) for row in history]
+
+
+def _phase_http(exc: Exception) -> HTTPException:
+    from investhome_api.services.inventory.phase_service import PhaseError
+
+    if isinstance(exc, PhaseError):
+        code = status.HTTP_409_CONFLICT if exc.key == "inventory.errors.phase_duplicate" else status.HTTP_400_BAD_REQUEST
+        if exc.key == "inventory.errors.project_not_found":
+            code = status.HTTP_404_NOT_FOUND
+        if exc.key == "inventory.errors.phase_not_found":
+            code = status.HTTP_404_NOT_FOUND
+        return HTTPException(status_code=code, detail=exc.key)
+    raise exc
+
+
+@router.get("/projects/{project_id}/phases", response_model=list[ProjectPhaseResponse])
+def list_project_phases(
+    project_id: UUID,
+    include_inactive: bool = Query(default=False),
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_permission("inventory", "view")),
+) -> list[ProjectPhaseResponse]:
+    from investhome_api.services.inventory.phase_service import PhaseError, list_phases
+
+    try:
+        return [ProjectPhaseResponse.model_validate(row) for row in list_phases(db, project_id, include_inactive=include_inactive)]
+    except PhaseError as exc:
+        raise _phase_http(exc) from exc
+
+
+@router.post(
+    "/projects/{project_id}/phases",
+    response_model=ProjectPhaseResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_project_phase(
+    project_id: UUID,
+    payload: ProjectPhaseCreate,
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_permission("projects", "update")),
+) -> ProjectPhaseResponse:
+    from investhome_api.services.inventory.phase_service import PhaseError, create_phase
+
+    try:
+        phase = create_phase(
+            db,
+            project_id,
+            name=payload.name,
+            display_order=payload.display_order,
+            active=payload.active,
+            address_line=payload.address_line,
+            city=payload.city,
+            region=payload.region,
+            postal_code=payload.postal_code,
+        )
+        db.commit()
+        db.refresh(phase)
+    except PhaseError as exc:
+        db.rollback()
+        raise _phase_http(exc) from exc
+    return ProjectPhaseResponse.model_validate({**phase.__dict__, "unit_count": 0})
+
+
+@router.put("/projects/{project_id}/phases/reorder", response_model=list[ProjectPhaseResponse])
+def reorder_project_phases(
+    project_id: UUID,
+    payload: ProjectPhaseReorder,
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_permission("projects", "update")),
+) -> list[ProjectPhaseResponse]:
+    from investhome_api.services.inventory.phase_service import PhaseError, reorder_phases
+
+    try:
+        rows = reorder_phases(db, project_id, payload.phase_ids)
+        db.commit()
+    except PhaseError as exc:
+        db.rollback()
+        raise _phase_http(exc) from exc
+    return [ProjectPhaseResponse.model_validate(row) for row in rows]
+
+
+@router.patch("/projects/{project_id}/phases/{phase_id}", response_model=ProjectPhaseResponse)
+def update_project_phase(
+    project_id: UUID,
+    phase_id: UUID,
+    payload: ProjectPhaseUpdate,
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_permission("projects", "update")),
+) -> ProjectPhaseResponse:
+    from investhome_api.services.inventory.phase_service import PhaseError, list_phases, update_phase
+
+    data = payload.model_dump(exclude_unset=True)
+    try:
+        update_phase(db, project_id, phase_id, **data)
+        db.commit()
+        rows = list_phases(db, project_id, include_inactive=True)
+    except PhaseError as exc:
+        db.rollback()
+        raise _phase_http(exc) from exc
+    match = next((row for row in rows if row["id"] == phase_id), None)
+    if match is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="inventory.errors.phase_not_found")
+    return ProjectPhaseResponse.model_validate(match)

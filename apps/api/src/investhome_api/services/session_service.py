@@ -8,10 +8,10 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi import Request
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import set_committed_value
 
-from investhome_api.db.session import SessionLocal
 from investhome_api.models.security_enterprise import AuthSession
 from investhome_api.models.user_auth import User
 
@@ -90,43 +90,102 @@ def get_active_session(db: Session, token_jti: str) -> AuthSession | None:
     return session
 
 
-def touch_session(db: Session, session: AuthSession) -> None:
-    """Update last_seen_at without holding locks on the request transaction.
+def touch_session(db: Session, session: AuthSession) -> bool:
+    """Advance last_seen_at on the caller's session when the row is still stale.
 
-    P11 session tracking used to UPDATE auth_sessions inside the request-scoped
-    session and flush. Concurrent async auth deps then blocked the event loop
-    waiting on that row lock, which hung login and other API calls.
+    Uses one conditional UPDATE so concurrent requests that all observed the same
+    timestamp do not each write. Does not open another connection and does not
+    commit; the auth dependency commits before endpoint work so the row lock is
+    not held for the rest of the request.
     """
-    del db  # request session must not hold the touch write
     now = datetime.now(UTC)
     last = session.last_seen_at
     if last is not None:
         if last.tzinfo is None:
             last = last.replace(tzinfo=UTC)
         if now - last < _TOUCH_MIN_INTERVAL:
-            return
+            return False
 
-    with SessionLocal() as touch_db:
-        touch_db.execute(
-            update(AuthSession)
-            .where(AuthSession.id == session.id)
-            .values(last_seen_at=now)
+    threshold = now - _TOUCH_MIN_INTERVAL
+    statement = (
+        update(AuthSession)
+        .where(
+            AuthSession.id == session.id,
+            AuthSession.revoked_at.is_(None),
+            or_(
+                AuthSession.last_seen_at.is_(None),
+                AuthSession.last_seen_at <= threshold,
+            ),
         )
-        touch_db.commit()
-    session.last_seen_at = now
+        .values(last_seen_at=now)
+        .execution_options(synchronize_session=False)
+    )
+    result = db.execute(statement)
+    if not result.rowcount:
+        return False
+    set_committed_value(session, "last_seen_at", now)
+    return True
 
 
-def extend_session_expiry(session_id: uuid.UUID, expires_at: datetime) -> None:
-    """Persist a sliding JWT expiry without using the request-scoped session."""
-    from investhome_api.db.session import SessionLocal as current_session_local
+def extend_session_expiry(db: Session, session: AuthSession, expires_at: datetime) -> None:
+    """Stage a sliding expiry on the current auth transaction.
 
-    with current_session_local() as refresh_db:
-        refresh_db.execute(
-            update(AuthSession)
-            .where(AuthSession.id == session_id)
-            .values(expires_at=expires_at)
-        )
-        refresh_db.commit()
+    The caller commits. This does not open a second pooled connection.
+    """
+    del db
+    session.expires_at = expires_at
+
+
+def commit_auth_transaction(db: Session) -> bool:
+    """Commit auth-only work and return the connection to the pool.
+
+    Pending business objects are left untouched. SessionLocal uses
+    expire_on_commit=False, so the loaded user graph stays usable.
+    """
+    pending = [
+        obj
+        for obj in (*db.new, *db.dirty, *db.deleted)
+        if not isinstance(obj, AuthSession)
+    ]
+    if pending:
+        return False
+    if not db.in_transaction():
+        return True
+    previous_expire = db.expire_on_commit
+    db.expire_on_commit = False
+    try:
+        db.commit()
+    except Exception:
+        if db.in_transaction():
+            db.rollback()
+        raise
+    finally:
+        db.expire_on_commit = previous_expire
+    return True
+
+
+def abort_auth_transaction(db: Session) -> None:
+    """End an auth transaction after a failure so the connection is not left open."""
+    if db.in_transaction():
+        db.rollback()
+
+
+def release_read_transaction(db: Session) -> None:
+    """Release a SELECT-only transaction without expiring loaded objects."""
+    if db.new or db.dirty or db.deleted:
+        return
+    if not db.in_transaction():
+        return
+    previous_expire = db.expire_on_commit
+    db.expire_on_commit = False
+    try:
+        db.commit()
+    except Exception:
+        if db.in_transaction():
+            db.rollback()
+        raise
+    finally:
+        db.expire_on_commit = previous_expire
 
 
 def revoke_session(

@@ -13,6 +13,7 @@ from investhome_api.models.project import (
     ProjectStatus,
     ProjectType,
 )
+from investhome_api.models.project_budget import BudgetAudience
 from investhome_api.models.user_auth import User
 from investhome_api.schemas.project import (
     ProjectCreate,
@@ -290,10 +291,12 @@ def get_project_campaigns(
 @router.get("/{project_id}/financials", response_model=ProjectFinancialsResponse)
 def get_project_financials(
     project_id: UUID,
+    audience: BudgetAudience = Query(default=BudgetAudience.INTERNAL),
+    phase_id: UUID | None = Query(default=None),
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("projects", "view")),
 ) -> ProjectFinancialsResponse:
-    return detail_svc.get_financials(db, user, project_id)
+    return detail_svc.get_financials(db, user, project_id, audience=audience, phase_id=phase_id)
 
 
 @router.get(
@@ -342,6 +345,7 @@ def get_project_construction(
 def get_project_units(
     project_id: UUID,
     search: str | None = Query(default=None, max_length=255),
+    phase_id: UUID | None = None,
     availability_status: str | None = None,
     sales_status: str | None = None,
     sales_market: str | None = Query(default=None, pattern="^(turkey|usa)$"),
@@ -359,6 +363,7 @@ def get_project_units(
         user,
         project_id,
         search=search,
+        phase_id=phase_id,
         availability_status=availability_status,
         sales_status=sales_status,
         sales_market=sales_market,
@@ -392,10 +397,11 @@ def get_project_leasing(
 @router.get("/{project_id}/investors", response_model=ProjectInvestorsResponse)
 def get_project_investors(
     project_id: UUID,
+    phase_id: UUID | None = Query(default=None),
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("projects", "view")),
 ) -> ProjectInvestorsResponse:
-    return detail_svc.get_investors(db, user, project_id)
+    return detail_svc.get_investors(db, user, project_id, phase_id=phase_id)
 
 
 @router.get("/{project_id}/documents", response_model=ProjectDocumentsResponse)

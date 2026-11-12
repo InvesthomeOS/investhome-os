@@ -222,6 +222,7 @@ class FundingCommitmentBase(BaseModel):
     investor_id: UUID
     commitment_type: CommitmentType
     committed_amount: Decimal = Field(gt=0)
+    contracted_profit: Decimal | None = Field(default=None, ge=0)
     funded_amount: Decimal | None = Field(default=None, ge=0)
     remaining_amount: Decimal | None = Field(default=None, ge=0)
     currency: str = Field(default="USD", min_length=3, max_length=3)
@@ -248,6 +249,7 @@ class FundingCommitmentUpdate(BaseModel):
     investor_id: UUID | None = None
     commitment_type: CommitmentType | None = None
     committed_amount: Decimal | None = Field(default=None, gt=0)
+    contracted_profit: Decimal | None = Field(default=None, ge=0)
     funded_amount: Decimal | None = Field(default=None, ge=0)
     remaining_amount: Decimal | None = Field(default=None, ge=0)
     currency: str | None = Field(default=None, min_length=3, max_length=3)

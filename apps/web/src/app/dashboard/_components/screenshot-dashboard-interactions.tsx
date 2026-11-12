@@ -112,8 +112,6 @@ export const QUICK_ACTIONS: readonly QuickActionDefinition[] = [
 type DashboardInteractionContextValue = {
   openAi: (prompt?: string) => void;
   openQuickAction: (action: QuickActionId) => void;
-  openNotifications: () => void;
-  unreadCount: number;
 };
 
 const DashboardInteractionContext = createContext<DashboardInteractionContextValue | null>(null);
@@ -291,49 +289,12 @@ function AiDrawer({
   );
 }
 
-function MockNotifications({
-  open,
-  unreadCount,
-  onClose,
-}: {
-  open: boolean;
-  unreadCount: number;
-  onClose: () => void;
-}) {
-  const t = useTranslations('screenshotDashboard');
-
-  return (
-    <Drawer
-      open={open}
-      onClose={onClose}
-      title={t('notifications.title')}
-      subtitle={t('notifications.unread', { count: unreadCount })}
-      size="sm"
-    >
-      <ul className="screenshot-notifications">
-        {(['lead', 'meeting', 'payment'] as const).map((item, index) => (
-          <li key={item} className={index < unreadCount ? 'is-unread' : ''}>
-            <span aria-hidden="true" />
-            <div>
-              <strong>{t(`notifications.items.${item}.title`)}</strong>
-              <p>{t(`notifications.items.${item}.body`)}</p>
-              <small>{t(`notifications.items.${item}.time`)}</small>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </Drawer>
-  );
-}
-
 export function ScreenshotDashboardInteractionProvider({ children }: { children: ReactNode }) {
   const t = useTranslations('screenshotDashboard');
   const [aiOpen, setAiOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [quickAction, setQuickAction] = useState<QuickActionId | null>(null);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  const unreadCount = 2;
 
   const openAi = useCallback((prompt = '') => {
     setAiPrompt(prompt);
@@ -342,10 +303,6 @@ export function ScreenshotDashboardInteractionProvider({ children }: { children:
 
   const openQuickAction = useCallback((action: QuickActionId) => {
     setQuickAction(action);
-  }, []);
-
-  const openNotifications = useCallback(() => {
-    setNotificationsOpen(true);
   }, []);
 
   const closeAi = useCallback(() => {
@@ -370,19 +327,14 @@ export function ScreenshotDashboardInteractionProvider({ children }: { children:
   };
 
   const value = useMemo(
-    () => ({ openAi, openQuickAction, openNotifications, unreadCount }),
-    [openAi, openQuickAction, openNotifications],
+    () => ({ openAi, openQuickAction }),
+    [openAi, openQuickAction],
   );
 
   return (
     <DashboardInteractionContext.Provider value={value}>
       {children}
       <AiDrawer open={aiOpen} initialPrompt={aiPrompt} onClose={closeAi} />
-      <MockNotifications
-        open={notificationsOpen}
-        unreadCount={unreadCount}
-        onClose={() => setNotificationsOpen(false)}
-      />
       <Dialog
         open={selectedAction !== null}
         onClose={() => setQuickAction(null)}

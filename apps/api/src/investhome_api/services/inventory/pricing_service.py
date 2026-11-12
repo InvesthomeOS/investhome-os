@@ -229,6 +229,62 @@ def create_initial_price(
     return price
 
 
+def import_list_price(
+    db: Session,
+    *,
+    asset: InventoryAsset,
+    amount: Decimal,
+    actor: User | None,
+    reason: str,
+) -> str:
+    """Write a list price through the versioned price history.
+
+    An equal active amount leaves the history untouched. A different amount
+    supersedes the active row and appends one IMPORT row. No budget line is written.
+    """
+    if amount < 0:
+        raise PricingError("inventory.pricing.errors.negative_amount")
+    quantized = amount.quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+    active = get_active_price(db, asset.id, PriceType.LIST, asset.currency)
+    if active is not None and active.amount == quantized:
+        return "unchanged"
+
+    effective_from = datetime.now(UTC).date()
+    if active is not None:
+        _supersede_active_price(db, active, effective_to=effective_from)
+
+    price = InventoryAssetPrice(
+        inventory_asset_id=asset.id,
+        price_type=PriceType.LIST,
+        amount=quantized,
+        currency=asset.currency,
+        effective_from=effective_from,
+        effective_to=None,
+        status=PriceStatus.ACTIVE,
+        reason=reason,
+        source=PriceSource.IMPORT,
+        created_by_user_id=actor.id if actor is not None else None,
+        is_demo=asset.is_demo,
+    )
+    db.add(price)
+    db.flush()
+    _refresh_asset_price_cache(asset, price)
+    _append_price_event(
+        db,
+        asset_id=asset.id,
+        event_type="inventory.price.imported",
+        actor=actor,
+        price_id=price.id,
+        metadata={
+            "price_type": PriceType.LIST.value,
+            "amount": str(quantized),
+            "currency": asset.currency,
+            "previous_amount": str(active.amount) if active is not None else None,
+        },
+    )
+    return "created" if active is None else "changed"
+
+
 def archive_draft_price(
     db: Session,
     price: InventoryAssetPrice,

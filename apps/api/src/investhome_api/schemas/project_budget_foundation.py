@@ -10,6 +10,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from investhome_api.models.project_budget import (
+    BudgetAudience,
     BudgetCategoryType,
     BudgetRevisionStatus,
     BudgetVersionStatus,
@@ -103,6 +104,8 @@ class CostCodeUpdate(BaseModel):
 
 class BudgetVersionCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
+    audience: BudgetAudience = BudgetAudience.INTERNAL
+    phase_id: UUID | None = None
     description: str | None = None
     currency: str | None = Field(default=None, min_length=3, max_length=3)
     effective_date: date | None = None
@@ -120,7 +123,9 @@ class BudgetVersionResponse(BaseModel):
     id: UUID
     company_id: UUID | None
     project_id: UUID
+    phase_id: UUID | None = None
     name: str
+    audience: BudgetAudience = BudgetAudience.INTERNAL
     version_number: int
     status: BudgetVersionStatus
     description: str | None

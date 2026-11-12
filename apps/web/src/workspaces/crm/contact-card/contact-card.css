@@ -1,8 +1,33 @@
 .ih-drawer:has(.crm-purchase-card) .ih-drawer__panel,
 .ih-drawer:has(.crm-contact-card) .ih-drawer__panel {
+  display: flex;
+  flex-direction: column;
   width: min(1180px, 100vw);
   max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  padding: 0;
   background: #f3f6f8;
+}
+
+.ih-drawer:has(.crm-contact-card) .ih-drawer__header,
+.ih-drawer:has(.crm-purchase-card) .ih-drawer__header {
+  flex: 0 0 auto;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0;
+  padding: 16px 20px 12px;
+  background: #fff;
+}
+
+.ih-drawer:has(.crm-contact-card) .ih-drawer__body,
+.ih-drawer:has(.crm-purchase-card) .ih-drawer__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 20px 24px;
 }
 
 @media (max-width: 768px) {
@@ -663,7 +688,80 @@
 
 .crm-doc-gallery__tools {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.crm-doc-gallery__upload {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid #cfd8dc;
+  border-radius: 8px;
+  background: #fff;
+  color: #17313d;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.crm-doc-gallery__upload:hover {
+  background: #f6f9fa;
+  border-color: #aebcc2;
+}
+
+.crm-doc-gallery__upload input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.crm-doc-gallery__upload-panel {
+  padding: 14px;
+  border: 1px solid #e1e7e9;
+  border-radius: 10px;
+  background: #fbfcfd;
+}
+
+.crm-doc-gallery__upload-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.crm-doc-gallery__upload-description {
+  grid-column: 1 / -1;
+}
+
+.crm-doc-gallery__upload-panel label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #344b57;
+}
+
+.crm-doc-gallery__upload-panel input,
+.crm-doc-gallery__upload-panel select,
+.crm-doc-gallery__upload-panel textarea {
+  width: 100%;
+  font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  .crm-doc-gallery__upload-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .crm-doc-gallery__upload-description {
+    grid-column: auto;
+  }
 }
 
 .crm-doc-gallery__list {
@@ -942,6 +1040,70 @@
   margin: 0;
   color: #b42318;
   font-size: 13px;
+}
+
+.crm-email-compose__files {
+  display: grid;
+  gap: 6px;
+}
+
+.crm-email-compose__files > button,
+.crm-email-compose__file-menu button {
+  width: fit-content;
+  border: 1px solid #d0d5dd;
+  background: #fff;
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.crm-email-compose__file-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.crm-email-compose__attachments {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+}
+
+.crm-email-compose__attachments li,
+.crm-email-compose__picker label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.crm-email-compose__attachments button {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #b42318;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.crm-email-compose__picker {
+  display: grid;
+  gap: 4px;
+  max-height: 160px;
+  overflow: auto;
+}
+
+.crm-email-compose__picker p {
+  margin: 0;
+  color: #667085;
+  font-size: 12px;
 }
 
 .crm-email-detail__panel header small {
@@ -1471,4 +1633,25 @@ div.crm-person-kpi {
   .crm-person-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+.crm-active-processes {
+  margin: 12px 0 4px;
+  padding: 12px 14px;
+  border: 1px solid #e4e1d8;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.crm-active-processes ul {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.crm-active-processes li[data-focused='true'] {
+  outline: 2px solid #1f6b4a;
+  border-radius: 8px;
 }

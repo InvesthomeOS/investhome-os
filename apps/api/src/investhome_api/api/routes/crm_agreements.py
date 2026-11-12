@@ -7,6 +7,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from investhome_api.api.deps.auth import require_permission
@@ -14,6 +15,11 @@ from investhome_api.core.request_context import get_request_id
 from investhome_api.db.session import get_db
 from investhome_api.models.crm_agreement import CrmAgreementStatus
 from investhome_api.models.user_auth import User
+from investhome_api.schemas.crm_operations import (
+    CrmAgreementCreateRequest,
+    CrmAgreementCreateResult,
+    CrmAgreementStageUpdate,
+)
 from investhome_api.schemas.crm_agreements import (
     CrmAgreementActivityListResponse,
     CrmAgreementBoardCardsResponse,
@@ -29,11 +35,20 @@ from investhome_api.services.crm.agreement_service import (
     agreement_board,
     agreement_board_cards,
     agreement_list_meta,
+    get_agreement,
     get_purchase_card,
     list_agreements,
+    cancel_agreement,
+    list_project_unit_catalog,
+    return_agreement_to_pipeline,
     list_purchase_activities,
     list_purchase_calendar,
     patch_agreement,
+    set_agreement_stage,
+)
+from investhome_api.services.crm.crm_operations import (
+    CrmOperationError,
+    create_agreement_for_person,
 )
 from investhome_api.services.crm.contact_service import paginate_total_pages
 from investhome_api.services.crm.financial_visibility import (
@@ -64,6 +79,7 @@ def get_agreements(
     sort_by: Annotated[str, Query(max_length=40)] = "agreement_date",
     sort_dir: Annotated[str, Query(max_length=4)] = "desc",
     q: Annotated[str | None, Query(max_length=255)] = None,
+    phase_id: Annotated[UUID | None, Query()] = None,
 ) -> CrmAgreementListResponse:
     items, total = list_agreements(
         db,
@@ -71,6 +87,7 @@ def get_agreements(
         status=status_filter,
         contact_id=contact_id,
         search=q,
+        phase_id=phase_id,
         sort_by=sort_by,
         sort_dir=sort_dir,
         page=page,
@@ -94,6 +111,7 @@ def _board_filters(
     q: str | None,
     stage: str | None,
     responsible: str | None,
+    phase_id: UUID | None = None,
 ) -> dict[str, object]:
     return {
         "project_group": project_group,
@@ -102,6 +120,7 @@ def _board_filters(
         "search": q,
         "stage": stage,
         "responsible": responsible,
+        "phase_id": phase_id,
     }
 
 
@@ -115,6 +134,7 @@ def get_agreement_board_cards(
     contact_id: Annotated[UUID | None, Query()] = None,
     q: Annotated[str | None, Query(max_length=255)] = None,
     responsible: Annotated[str | None, Query(max_length=120)] = None,
+    phase_id: Annotated[UUID | None, Query()] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=50)] = BOARD_CARD_PAGE_SIZE,
 ) -> CrmAgreementBoardCardsResponse:
@@ -129,6 +149,7 @@ def get_agreement_board_cards(
             q=q,
             stage=stage,
             responsible=responsible,
+            phase_id=phase_id,
         ),
     )
     payload["items"] = maybe_strip_agreement_summaries(user, payload["items"])
@@ -145,6 +166,7 @@ def get_agreement_board(
     q: Annotated[str | None, Query(max_length=255)] = None,
     stage: Annotated[str | None, Query(max_length=120)] = None,
     responsible: Annotated[str | None, Query(max_length=120)] = None,
+    phase_id: Annotated[UUID | None, Query()] = None,
     page_size: Annotated[int, Query(ge=1, le=50)] = BOARD_CARD_PAGE_SIZE,
 ) -> CrmAgreementBoardResponse:
     payload = agreement_board(
@@ -157,6 +179,7 @@ def get_agreement_board(
             q=q,
             stage=stage,
             responsible=responsible,
+            phase_id=phase_id,
         ),
     )
     for column in payload["columns"]:
@@ -223,6 +246,76 @@ def get_agreement_calendar(
     return CrmAgreementCalendarResponse(items=items, start=start, end=end)
 
 
+@router.get("/project-units")
+def get_project_units(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "read"))],
+    project_group: Annotated[str, Query(min_length=1, max_length=40)],
+    phase_id: Annotated[UUID | None, Query()] = None,
+) -> dict[str, object]:
+    del user
+    return list_project_unit_catalog(db, project_group, phase_id)
+
+
+@router.post("", response_model=CrmAgreementCreateResult, status_code=status.HTTP_201_CREATED)
+def create_agreement_route(
+    body: CrmAgreementCreateRequest,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "create"))],
+) -> CrmAgreementCreateResult:
+    person = body.model_dump(
+        exclude={
+            "project_group",
+            "unit_number",
+            "phase_id",
+            "inventory_asset_id",
+            "investment_amount",
+            "agreement_date",
+            "source_lead_id",
+        }
+    )
+    try:
+        result = create_agreement_for_person(
+            db,
+            actor=user,
+            project_group=body.project_group,
+            unit_number=body.unit_number,
+            phase_id=body.phase_id,
+            inventory_asset_id=body.inventory_asset_id,
+            investment_amount=body.investment_amount,
+            agreement_date=body.agreement_date,
+            source_lead_id=body.source_lead_id,
+            **person,
+        )
+        db.commit()
+    except (CrmOperationError, ValueError) as exc:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return CrmAgreementCreateResult(**result)
+
+
+@router.post("/{agreement_id}/stage", response_model=CrmPurchaseCard)
+def update_agreement_stage(
+    agreement_id: UUID,
+    body: CrmAgreementStageUpdate,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "update"))],
+) -> CrmPurchaseCard:
+    row = get_agreement(db, agreement_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="crm.agreements.errors.not_found")
+    try:
+        set_agreement_stage(row, body.stage)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    db.add(row)
+    db.commit()
+    card = get_purchase_card(db, agreement_id)
+    if card is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="crm.agreements.errors.not_found")
+    return maybe_strip_purchase_card(user, card)
+
+
 @router.patch("/{agreement_id}", response_model=CrmPurchaseCard)
 def patch_agreement_route(
     agreement_id: UUID,
@@ -255,6 +348,65 @@ def patch_agreement_route(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="crm.agreements.errors.not_found",
         )
+    return maybe_strip_purchase_card(user, card)
+
+
+class _CancelAgreementBody(BaseModel):
+    reason: str
+    note: str | None = None
+    cancelled_on: date | None = None
+
+
+class _ReturnPipelineBody(BaseModel):
+    stage: str
+
+
+@router.post("/{agreement_id}/cancel", response_model=CrmPurchaseCard)
+def cancel_agreement_route(
+    agreement_id: UUID,
+    body: _CancelAgreementBody,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "update"))],
+) -> CrmPurchaseCard:
+    agreement = get_agreement(db, agreement_id)
+    if agreement is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="crm.agreements.errors.not_found")
+    try:
+        cancel_agreement(
+            db,
+            user,
+            agreement,
+            reason=body.reason,
+            note=body.note,
+            cancelled_on=body.cancelled_on,
+        )
+        db.commit()
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    card = get_purchase_card(db, agreement_id)
+    if card is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="crm.agreements.errors.not_found")
+    return maybe_strip_purchase_card(user, card)
+
+
+@router.post("/{agreement_id}/return-pipeline", response_model=CrmPurchaseCard)
+def return_pipeline_route(
+    agreement_id: UUID,
+    body: _ReturnPipelineBody,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "update"))],
+) -> CrmPurchaseCard:
+    agreement = get_agreement(db, agreement_id)
+    if agreement is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="crm.agreements.errors.not_found")
+    try:
+        return_agreement_to_pipeline(db, user, agreement, stage=body.stage)
+        db.commit()
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    card = get_purchase_card(db, agreement_id)
+    if card is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="crm.agreements.errors.not_found")
     return maybe_strip_purchase_card(user, card)
 
 

@@ -131,6 +131,12 @@ export type CrmLeadItem = {
   ad_id: string | null;
   form_id: string | null;
   project: string | null;
+  project_id?: string | null;
+  phase_id?: string | null;
+  phase_name?: string | null;
+  inventory_asset_id?: string | null;
+  unit_number?: string | null;
+  interest_label?: string | null;
   owner_user_id: string | null;
   owner_name: string | null;
   stage: CrmLeadStage;
@@ -152,6 +158,14 @@ export type CrmLeadItem = {
   existing_person_name?: string | null;
   activity?: CrmLeadActivityItem[];
   tasks?: CrmLeadTaskItem[];
+  note_entries?: CrmLeadNoteItem[];
+};
+
+export type CrmLeadNoteItem = {
+  id: string;
+  body: string;
+  author_name: string | null;
+  created_at: string;
 };
 
 export type CrmLeadKpis = {
@@ -209,13 +223,27 @@ export type CrmLeadBoardCardsResponse = {
 
 export type CrmLeadWrite = {
   full_name?: string;
+  first_name?: string;
+  last_name?: string;
   phone?: string;
   email?: string;
+  contact_id?: string | null;
+  address_line1?: string;
+  city?: string;
+  state_province?: string;
+  country?: string;
+  language?: string;
+  organization_name?: string;
+  job_title?: string;
+  next_follow_up_at?: string | null;
   source?: string;
   campaign?: string;
   ad_id?: string;
   form_id?: string;
   project?: string;
+  project_id?: string | null;
+  phase_id?: string | null;
+  inventory_asset_id?: string | null;
   owner_user_id?: string | null;
   notes?: string;
   stage?: CrmLeadStage;
@@ -238,6 +266,7 @@ export type CrmLeadListParams = {
   stage?: string;
   source?: string;
   project?: string;
+  phase_id?: string;
   owner_id?: string;
   date_from?: string;
   date_to?: string;
@@ -276,6 +305,7 @@ function leadQuery(params: CrmLeadListParams, includePage: boolean): URLSearchPa
     stage: params.stage,
     source: params.source,
     project: params.project,
+    phase_id: params.phase_id,
     owner_id: params.owner_id,
     date_from: params.date_from,
     date_to: params.date_to,
@@ -340,7 +370,16 @@ export async function createCrmLead(payload: CrmLeadWrite, confirm = false): Pro
     await parseConflict(response, 'Mevcut kayıt bulundu');
   }
   if (!response.ok) {
-    throw new ApiError(`Request failed with status ${response.status}`, response.status);
+    let message = `Request failed with status ${response.status}`;
+    try {
+      const body = (await response.json()) as { detail?: unknown; error?: { message?: string } };
+      if (typeof body.detail === 'string' && body.detail) message = body.detail;
+      else if (body.error?.message) message = body.error.message;
+      else if (Array.isArray(body.detail) && typeof body.detail[0]?.msg === 'string') message = body.detail[0].msg;
+    } catch {
+      /* keep status fallback */
+    }
+    throw new ApiError(message, response.status);
   }
   return response.json() as Promise<CrmLeadItem>;
 }
@@ -350,6 +389,10 @@ export async function updateCrmLead(id: string, payload: CrmLeadWrite): Promise<
     method: 'PATCH',
     body: JSON.stringify(payload),
   });
+}
+
+export async function archiveCrmLead(id: string): Promise<unknown> {
+  return apiFetch(`/leads/${id}`, { method: 'DELETE' });
 }
 
 export async function moveCrmLeadStage(
@@ -384,7 +427,15 @@ export async function convertCrmLead(
     await parseConflict(response, 'Kişi eşleşmesi belirsiz');
   }
   if (!response.ok) {
-    throw new ApiError(`Request failed with status ${response.status}`, response.status);
+    let message = `Request failed with status ${response.status}`;
+    try {
+      const body = (await response.json()) as { detail?: unknown; error?: { message?: string } };
+      if (typeof body.detail === 'string' && body.detail) message = body.detail;
+      else if (body.error?.message) message = body.error.message;
+    } catch {
+      /* keep status fallback */
+    }
+    throw new ApiError(message, response.status);
   }
   return response.json() as Promise<CrmLeadConvertResponse>;
 }

@@ -14,6 +14,9 @@ export type CrmAgreementSummary = {
   status: CrmAgreementStatus;
   agreement_date: string | null;
   unit_number: string | null;
+  phase_id?: string | null;
+  phase_name?: string | null;
+  unit_display?: string | null;
   investment_amount: string | null;
   contact_email: string | null;
   contact_phone: string | null;
@@ -24,6 +27,7 @@ export type CrmAgreementSummary = {
   owners_label?: string | null;
   bitrix_deal_id?: string | null;
   amount_label?: string | null;
+  currency?: string | null;
   stage_label?: string | null;
   hemen_kira?: boolean;
   responsible_name?: string | null;
@@ -120,6 +124,10 @@ export type CrmPurchaseCard = {
   project_group: string;
   project_label: string;
   unit_number: string | null;
+  phase_id?: string | null;
+  phase_name?: string | null;
+  inventory_asset_id?: string | null;
+  unit_display?: string | null;
   amount: string | null;
   currency: string | null;
   amount_label: string | null;
@@ -161,6 +169,11 @@ export type CrmPurchaseCard = {
   extra_fields?: CrmLabeledValue[];
   hemen_kira?: boolean;
   unit_history?: CrmUnitHistoryStep[];
+  cancelled_at?: string | null;
+  cancellation_reason?: string | null;
+  cancellation_note?: string | null;
+  pipeline_return_stage?: string | null;
+  pipeline_returned_at?: string | null;
 };
 
 export type CrmAgreementActivityItem = {
@@ -263,6 +276,7 @@ export type CrmAgreementListResponse = {
 
 export type AgreementListParams = {
   project_group?: string;
+  phase_id?: string;
   status?: CrmAgreementStatus;
   contact_id?: string;
   q?: string;
@@ -279,6 +293,7 @@ export async function fetchAgreements(
   search.set('page', String(params.page ?? 1));
   search.set('page_size', String(params.page_size ?? 25));
   if (params.project_group) search.set('project_group', params.project_group);
+  if (params.phase_id) search.set('phase_id', params.phase_id);
   if (params.status) search.set('status', params.status);
   if (params.contact_id) search.set('contact_id', params.contact_id);
   if (params.q) search.set('q', params.q);
@@ -289,6 +304,7 @@ export async function fetchAgreements(
 
 export type AgreementBoardParams = {
   project_group?: string;
+  phase_id?: string;
   status?: CrmAgreementStatus;
   contact_id?: string;
   q?: string;
@@ -301,6 +317,7 @@ export type AgreementBoardParams = {
 function agreementBoardSearch(params: AgreementBoardParams, includePage: boolean) {
   const search = new URLSearchParams();
   if (params.project_group) search.set('project_group', params.project_group);
+  if (params.phase_id) search.set('phase_id', params.phase_id);
   if (params.status) search.set('status', params.status);
   if (params.contact_id) search.set('contact_id', params.contact_id);
   if (params.q) search.set('q', params.q);
@@ -361,10 +378,15 @@ export async function replaceAgreementOwners(
 export async function changeAgreementUnit(
   agreementId: string,
   unitNumber: string,
+  links: { phase_id?: string | null; inventory_asset_id?: string | null } = {},
 ): Promise<CrmPurchaseCard> {
   return apiFetch<CrmPurchaseCard>(`/crm/agreements/${agreementId}/unit`, {
     method: 'PATCH',
-    body: JSON.stringify({ unit_number: unitNumber }),
+    body: JSON.stringify({
+      unit_number: unitNumber,
+      phase_id: links.phase_id || null,
+      inventory_asset_id: links.inventory_asset_id || null,
+    }),
   });
 }
 

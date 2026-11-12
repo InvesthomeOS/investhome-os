@@ -110,6 +110,8 @@ export type CrmPurchaseSummary = {
   project_group: string;
   project_label: string;
   unit_number: string | null;
+  phase_name?: string | null;
+  unit_display?: string | null;
   amount: string | null;
   currency: string | null;
   amount_label: string | null;
@@ -206,6 +208,8 @@ export type CrmContactDetail = CrmContactSummary & {
     status: string;
     agreement_date: string | null;
     unit_number?: string | null;
+    phase_name?: string | null;
+    unit_display?: string | null;
     investment_amount?: string | null;
     payment_amount?: string | null;
     deposit?: string | null;
@@ -355,6 +359,8 @@ export const CRM_NAV_ITEMS: CrmNavItem[] = [
   { href: '/workspaces/crm/dashboard', labelKey: 'nav.dashboard' },
   { href: '/workspaces/crm/leads', labelKey: 'nav.pipeline' },
   { href: '/workspaces/crm/contacts', labelKey: 'nav.contacts' },
+  { href: '/workspaces/crm/agents', labelKey: 'nav.agents' },
+  { href: '/workspaces/crm/agreements', labelKey: 'nav.agreements' },
   { href: '/workspaces/crm/companies', labelKey: 'nav.companies' },
   { href: '/workspaces/crm/tasks', labelKey: 'nav.tasks' },
 ];

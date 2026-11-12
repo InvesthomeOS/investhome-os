@@ -3,10 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Route } from 'next';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 
 import { Button, Input, Select } from '@investhome/ui';
+
+import { useCrmAccess } from '@/lib/crm/use-crm-access';
+import { CrmRecordDialog } from '@/workspaces/crm/crm-record-dialog';
+import { fetchProjectUnits } from '@/workspaces/crm/api/crm-operations';
+import { phaseFieldVisible } from '@/workspaces/crm/project-phase-unit.mjs';
 
 import { IhIcon } from '@/components/icons/ih-icons';
 import { LIST_SEARCH_DEBOUNCE_MS, useDebouncedQueryParam, useListQueryPatch } from '@/lib/crm/list-query';
@@ -54,6 +59,8 @@ export function AgreementsWorkspace() {
   const searchParams = useSearchParams();
   const patch = useListQueryPatch(AGREEMENT_LIST_DEFAULTS);
   const projectGroup = searchParams.get('project') ?? '';
+  const phaseId = searchParams.get('phase') ?? '';
+  const locale = useLocale();
   const statusParam = searchParams.get('status') ?? '';
   const status: '' | CrmAgreementStatus =
     statusParam === 'active' || statusParam === 'completed' || statusParam === 'cancelled' ? statusParam : '';
@@ -67,15 +74,18 @@ export function AgreementsWorkspace() {
   const listSort = searchParams.get('sort') === 'hemen_kira' ? 'hemen_kira' : 'agreement_date';
   const listDir = searchParams.get('dir') === 'asc' ? 'asc' : 'desc';
   const [view, setView] = useState<ViewId>('kanban');
+  const [createOpen, setCreateOpen] = useState(false);
+  const { canCreate } = useCrmAccess();
   const [stage, setStage] = useState('');
   const [responsible, setResponsible] = useState('');
   const [bucket, setBucket] = useState<StageBucket>('all');
 
   const boardQuery = useQuery({
-    queryKey: ['crm', 'agreements', 'board', projectGroup, status, queryText, stage, responsible],
+    queryKey: ['crm', 'agreements', 'board', projectGroup, phaseId, status, queryText, stage, responsible],
     queryFn: () =>
       fetchAgreementBoard({
         project_group: projectGroup || undefined,
+        phase_id: phaseId || undefined,
         status: status || undefined,
         q: queryText.trim() || undefined,
         stage: stage || undefined,
@@ -84,7 +94,7 @@ export function AgreementsWorkspace() {
   });
   const [extraCards, setExtraCards] = useState<Record<string, CrmAgreementSummary[]>>({});
   const [loadingStage, setLoadingStage] = useState<string | null>(null);
-  const boardFilterKey = `${projectGroup}|${status}|${queryText}|${stage}|${responsible}`;
+  const boardFilterKey = `${projectGroup}|${phaseId}|${status}|${queryText}|${stage}|${responsible}`;
   const boardFilterRef = useRef(boardFilterKey);
   boardFilterRef.current = boardFilterKey;
   useEffect(() => {
@@ -92,10 +102,11 @@ export function AgreementsWorkspace() {
   }, [boardFilterKey]);
 
   const listQuery = useQuery({
-    queryKey: ['crm', 'agreements', 'list', projectGroup, status, queryText, listPage, listPageSize, listSort, listDir],
+    queryKey: ['crm', 'agreements', 'list', projectGroup, phaseId, status, queryText, listPage, listPageSize, listSort, listDir],
     queryFn: () =>
       fetchAgreements({
         project_group: projectGroup || undefined,
+        phase_id: phaseId || undefined,
         status: status || undefined,
         q: queryText.trim() || undefined,
         page: listPage,
@@ -104,6 +115,12 @@ export function AgreementsWorkspace() {
         sort_dir: listDir,
       }),
     enabled: view === 'list',
+  });
+
+  const phaseCatalog = useQuery({
+    queryKey: ['crm', 'agreement-phases', projectGroup],
+    queryFn: () => fetchProjectUnits(projectGroup),
+    enabled: Boolean(projectGroup),
   });
 
   const groups = useMemo(() => {
@@ -174,6 +191,7 @@ export function AgreementsWorkspace() {
     try {
       const data = await fetchAgreementBoardCards({
         project_group: projectGroup || undefined,
+        phase_id: phaseId || undefined,
         status: status || undefined,
         q: queryText.trim() || undefined,
         stage: columnStage,
@@ -201,6 +219,11 @@ export function AgreementsWorkspace() {
           <p>{t('subtitle')}</p>
         </div>
         <div className="crm-agreements-views" role="tablist" aria-label={t('viewsLabel')}>
+          {canCreate ? (
+            <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
+              Yeni Anlaşma
+            </Button>
+          ) : null}
           {VIEWS.map((item) => (
             <button
               key={item.id}
@@ -228,7 +251,7 @@ export function AgreementsWorkspace() {
           label={t('projectFilter')}
           value={projectGroup}
           data-testid="agreements-project-filter"
-          onChange={(event) => patch({ project: event.target.value, page: null })}
+          onChange={(event) => patch({ project: event.target.value, phase: null, page: null })}
         >
           <option value="">{t('allProjects')}</option>
           {groups.map((group) => (
@@ -237,6 +260,18 @@ export function AgreementsWorkspace() {
             </option>
           ))}
         </Select>
+        {phaseFieldVisible(phaseCatalog.data?.phases) ? (
+          <Select
+            label={locale === 'tr' ? 'Faz' : 'Phase'}
+            value={phaseId}
+            onChange={(event) => patch({ phase: event.target.value, page: null })}
+          >
+            <option value="">{locale === 'tr' ? 'Tüm fazlar' : 'All phases'}</option>
+            {(phaseCatalog.data?.phases ?? []).map((phase) => (
+              <option key={phase.id} value={phase.id}>{phase.name}</option>
+            ))}
+          </Select>
+        ) : null}
         <Select label={t('stageFilter')} value={stage} onChange={(event) => setStage(event.target.value)}>
           <option value="">{t('allStages')}</option>
           {stages.map((item) => (
@@ -359,6 +394,16 @@ export function AgreementsWorkspace() {
           contacts={boardQuery.data?.contacts ?? []}
           latestAgreementDate={boardQuery.data?.latest_agreement_date ?? null}
           onOpenAgreement={openAgreement}
+        />
+      ) : null}
+      {createOpen ? (
+        <CrmRecordDialog
+          mode="agreement"
+          onClose={() => setCreateOpen(false)}
+          onDone={(_message, result) => {
+            setCreateOpen(false);
+            if (result?.agreement_id && result.contact_id) openAgreement(result.agreement_id, result.contact_id);
+          }}
         />
       ) : null}
     </div>

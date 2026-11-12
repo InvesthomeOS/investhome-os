@@ -6,7 +6,8 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from investhome_api.api.deps.auth import require_permission
@@ -413,17 +414,64 @@ def post_task(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
+class _TaskCompleteBody(BaseModel):
+    outcome: str | None = None
+
+
+class _TaskRescheduleBody(BaseModel):
+    due_date: datetime | None = None
+    due_on: str | None = None
+    due_time: str | None = None
+    timezone: str | None = None
+
+
 @router.post("/tasks/{activity_id}/complete", response_model=CrmActivityMutationResponse)
-def post_complete_task(
+async def post_complete_task(
     activity_id: UUID,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
     user: Annotated[User, Depends(require_permission("crm", "manage_tasks"))],
 ) -> CrmActivityMutationResponse:
     activity = _get_activity_or_404(db, activity_id)
+    raw = await request.body()
+    outcome = None
+    if raw:
+        outcome = _TaskCompleteBody.model_validate_json(raw).outcome
     try:
-        return CrmActivityMutationResponse(activity=complete_task(db, user, activity))
+        return CrmActivityMutationResponse(activity=complete_task(db, user, activity, outcome=outcome))
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.post("/tasks/{activity_id}/reschedule", response_model=CrmActivityMutationResponse)
+def post_reschedule_task(
+    activity_id: UUID,
+    body: _TaskRescheduleBody,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_permission("crm", "manage_tasks"))],
+) -> CrmActivityMutationResponse:
+    from investhome_api.services.crm.activity_service import (
+        ActivityValidationError,
+        _combine_task_due,
+        reschedule_task,
+    )
+
+    activity = _get_activity_or_404(db, activity_id)
+    from datetime import date as date_cls
+
+    due_on = date_cls.fromisoformat(body.due_on) if body.due_on else None
+    due = body.due_date or _combine_task_due(
+        due_date=None,
+        due_on=due_on,
+        due_time=body.due_time,
+        timezone=body.timezone or activity.timezone,
+    )
+    if due is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Yeni tarih gerekli")
+    try:
+        return CrmActivityMutationResponse(activity=reschedule_task(db, user, activity, due_date=due))
+    except (ValueError, ActivityValidationError) as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.get("/notes", response_model=CrmActivityListResponse)

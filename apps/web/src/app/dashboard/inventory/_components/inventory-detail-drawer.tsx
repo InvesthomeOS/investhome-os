@@ -63,6 +63,7 @@ interface InventoryDetailDrawerProps {
   onPricingChanged?: () => void;
   onOwnershipChanged?: () => void;
   pricingTabRequest?: number;
+  unitLabel?: string | null;
 }
 
 function DetailField({ label, value }: { label: string; value: React.ReactNode }) {
@@ -108,6 +109,7 @@ export function InventoryDetailDrawer({
   onPricingChanged,
   onOwnershipChanged,
   pricingTabRequest = 0,
+  unitLabel,
 }: InventoryDetailDrawerProps) {
   const t = useTranslations('inventory');
   const tCommon = useTranslations('common');
@@ -216,7 +218,7 @@ export function InventoryDetailDrawer({
       open
       onClose={onClose}
       wide
-      title={asset.display_id}
+      title={unitLabel || asset.display_id}
       ariaLabel={t('detail.ariaLabel')}
       footer={
         <div className="inventory__drawer-actions">

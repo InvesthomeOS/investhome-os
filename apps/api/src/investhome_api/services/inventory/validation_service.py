@@ -14,6 +14,7 @@ from investhome_api.models.inventory import (
     InventoryAssetType,
     UsageType,
 )
+from investhome_api.models.project import Project
 
 
 class InventoryValidationError(ValueError):
@@ -119,21 +120,28 @@ def assert_unique_display_identity(
     project_id: UUID,
     building_id: UUID | None,
     display_id: str,
+    phase_id: UUID | None = None,
     exclude_asset_id: UUID | None = None,
 ) -> None:
-    """Reject a repeated unit number inside one project and building.
+    """Reject a repeated unit identifier inside one project.
 
-    PostgreSQL enforces the same rule with UNIQUE NULLS NOT DISTINCT.
-    This check also covers SQLite, which treats null building ids as distinct.
+    Projects that still use phases keep Project + Phase + Unit. A project that
+    does not use phases treats the unit number as unique for the whole project,
+    so the same number can exist on a different project. Building is not part
+    of the key. PostgreSQL enforces the stored phase key with NULLS NOT DISTINCT.
     """
+    del building_id
+    project = db.get(Project, project_id)
     query = select(InventoryAsset.id).where(
         InventoryAsset.project_id == project_id,
         InventoryAsset.display_id == display_id,
     )
-    if building_id is None:
-        query = query.where(InventoryAsset.building_id.is_(None))
-    else:
-        query = query.where(InventoryAsset.building_id == building_id)
+    if project is not None and not project.uses_phases:
+        phase_id = None
+    if phase_id is None and (project is None or project.uses_phases):
+        query = query.where(InventoryAsset.phase_id.is_(None))
+    elif phase_id is not None:
+        query = query.where(InventoryAsset.phase_id == phase_id)
     if exclude_asset_id is not None:
         query = query.where(InventoryAsset.id != exclude_asset_id)
     if db.scalar(query.limit(1)) is not None:
@@ -171,6 +179,7 @@ def validate_asset_update(
     floor_id: UUID | None,
     asset_type: InventoryAssetType | None = None,
     usage_type: UsageType | None = None,
+    project_id: UUID | None = None,
 ) -> None:
     effective_type = asset_type or asset.asset_type
     effective_usage = usage_type or asset.usage_type
@@ -185,7 +194,7 @@ def validate_asset_update(
     )
     validate_structure_references(
         db,
-        project_id=asset.project_id,
+        project_id=project_id or asset.project_id,
         building_id=effective_building,
         floor_id=effective_floor,
     )

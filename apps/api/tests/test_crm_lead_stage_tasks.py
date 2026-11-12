@@ -306,7 +306,7 @@ def test_due_reminder_dispatches_existing_in_app_notification(client: TestClient
     assert reminder.is_sent is True
     notifications = (
         db.query(Notification)
-        .filter(Notification.dedupe_key.like(f"crm.task.due.{row.id}:%"))
+        .filter(Notification.dedupe_key.like(f"crm.task.due.{row.id}.%"))
         .all()
     )
     assert len(notifications) == 1

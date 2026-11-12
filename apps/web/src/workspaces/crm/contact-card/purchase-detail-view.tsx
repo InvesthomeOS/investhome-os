@@ -1,24 +1,24 @@
 'use client';
 
-import { FormEvent, useMemo, useState, type ReactNode } from 'react';
+import { FormEvent, useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { Button, Input, StatusChip } from '@investhome/ui';
+import { Button, Input, Select, StatusChip, TextArea } from '@investhome/ui';
 
 import { IhIcon } from '@/components/icons/ih-icons';
 import { hasPermission } from '@/lib/api/auth';
-import { linkDocument } from '@/lib/api/documents';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { uiError } from '@/lib/i18n/ui-error';
 import { createTask } from '@/workspaces/crm/api/activities';
+import { cancelAgreement, fetchProjectUnits, returnAgreementToPipeline } from '@/workspaces/crm/api/crm-operations';
+import { phaseFieldVisible, unitIdentifier, unitSelectionLabel, unitsForPhase } from '@/workspaces/crm/project-phase-unit.mjs';
 import {
   changeAgreementUnit,
   patchAgreement,
   type CrmLabeledValue,
   type CrmPurchaseCard,
-  type CrmPurchaseDocument,
 } from '@/workspaces/crm/api/agreements';
 import { EmailCard, EmailDetail, type EmailViewEntry } from '@/workspaces/crm/contact-card/crm-email-view';
 import { DocumentGallery } from '@/workspaces/crm/contact-card/document-gallery';
@@ -27,6 +27,7 @@ import { looksLikePayloadDump, stripHtml, taskStatusLabel } from '@/workspaces/c
 import { AgreementOwnersEditor } from '@/workspaces/crm/contact-card/agreement-owners-editor';
 import { UnitHistorySection } from '@/workspaces/crm/contact-card/unit-history';
 import { personCardCopy } from '@/workspaces/crm/contact-card/person-card-copy';
+import { currencyPrefix, formatAgreementAmount, numericAmount } from '@/workspaces/crm/money';
 import { isWhatsappEntry } from '@/workspaces/crm/contact-card/whatsapp-thread';
 
 import './contact-card.css';
@@ -271,19 +272,33 @@ export function PurchaseDetailView({
   const [filter, setFilter] = useState<HistoryFilter>('all');
   const [emailFocus, setEmailFocus] = useState<EmailViewEntry | null>(null);
   const [showMore, setShowMore] = useState(false);
-  const [showDocLink, setShowDocLink] = useState(false);
+  const [showCancel, setShowCancel] = useState(false);
+  const [cancelPending, setCancelPending] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelNote, setCancelNote] = useState('');
+  const [cancelDate, setCancelDate] = useState('');
+  const [returnStage, setReturnStage] = useState('');
+  const [returnPending, setReturnPending] = useState(false);
+  const [showOwnersEdit, setShowOwnersEdit] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
-  const [docId, setDocId] = useState('');
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDue, setTaskDue] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [amountEdit, setAmountEdit] = useState(card.amount || card.amount_label || '');
+  const [amountEdit, setAmountEdit] = useState(numericAmount(card.amount));
   const [amountOk, setAmountOk] = useState(false);
   const [unitDraft, setUnitDraft] = useState(card.unit_number || '');
+  const [unitPhaseId, setUnitPhaseId] = useState(card.phase_id || '');
+  const [unitAssetId, setUnitAssetId] = useState(card.inventory_asset_id || '');
   const [unitConfirm, setUnitConfirm] = useState(false);
 
   const isReit = card.project_group === 'reit';
-  const canEditUnit = canUpdate && !isReit;
+  const isCancelled = card.status === 'cancelled';
+  const canEditUnit = canUpdate && !isReit && !isCancelled;
+  const unitCatalog = useQuery({
+    queryKey: ['purchase-unit-catalog', card.project_group],
+    queryFn: () => fetchProjectUnits(card.project_group),
+    enabled: canEditUnit && !isReit,
+  });
   const stage = statusLabel(card.stage, tStage) || statusLabel(card.status, tStage) || null;
   const viewer =
     card.participants.find((item) => item.contact_id === contactId) ||
@@ -293,10 +308,24 @@ export function PurchaseDetailView({
   const personId = contactId || viewer?.contact_id || card.primary_contact_id;
   const address = findLabeled(card.extra_fields, /adres|address|lokasyon|location/i);
   const projectName = isReit ? 'REIT' : card.project_label;
-  const unitLabel = isReit ? null : card.unit_number;
-  const amount = card.amount_label || card.amount;
+  const catalogPhases = unitCatalog.data?.phases;
+  const usesPhases = Boolean(unitCatalog.data?.uses_phases);
+  const phasedEmpty = !isReit && usesPhases && !phaseFieldVisible(catalogPhases);
+  const phaseRequired = !isReit && usesPhases && phaseFieldVisible(catalogPhases);
+  const phaseLabel =
+    card.phase_name ||
+    catalogPhases?.find((phase) => phase.id === (card.phase_id || unitPhaseId))?.name ||
+    '';
+  const showPhase = phaseRequired || Boolean(phaseLabel);
+  const unitIdentity = isReit ? null : card.unit_number;
+  const unitLabel = isReit ? null : showPhase ? unitIdentity : card.unit_display || card.unit_number;
+  const amount = formatAgreementAmount(card.amount, card.currency) || card.amount_label || card.amount;
+  const amountPrefix = currencyPrefix(card.currency);
   const agreementDate = displayDate(card.agreement_date || card.begin_date);
-  const crumbUnit = isReit ? 'REIT' : [projectName, unitLabel].filter(Boolean).join(' / ');
+  const crumbUnit = isReit
+    ? 'REIT'
+    : [projectName, showPhase ? phaseLabel : null, unitIdentity || unitLabel].filter(Boolean).join(' · ');
+  const phaseOptions = unitsForPhase(unitCatalog.data?.items, unitPhaseId, usesPhases ? catalogPhases : []);
   const payments = paymentRows(card);
   const extrasUnit = unitFields(card.extra_fields);
   const extrasDates = dateFields(card.extra_fields);
@@ -307,12 +336,32 @@ export function PurchaseDetailView({
   const personDocs = (card.person_documents ?? []).filter((item) => !item.hidden_from_view);
   const documentGroups = (card.document_groups ?? []).filter((group) => group.unit_number);
   const groupedVisible = documentGroups.flatMap((group) => group.documents.filter((item) => !item.hidden_from_view));
-  const showDocGroups = documentGroups.length > 1;
+  const allDocuments = [...purchaseDocs, ...groupedVisible, ...personDocs];
+  const allDocumentCount = new Set(allDocuments.map((item) => item.id)).size;
+  useEffect(() => {
+    setUnitDraft(card.unit_number || '');
+    setUnitPhaseId(card.phase_id || '');
+    setUnitAssetId(card.inventory_asset_id || '');
+  }, [card.agreement_id, card.inventory_asset_id, card.phase_id, card.unit_number]);
+
+  useEffect(() => {
+    if (unitPhaseId || !card.phase_name) return;
+    const match = (catalogPhases ?? []).find((phase) => phase.name === card.phase_name);
+    if (match) setUnitPhaseId(match.id);
+  }, [card.phase_name, catalogPhases, unitPhaseId]);
+
   const canAct = Boolean(canCreate || canManageTasks);
-  const canEditAmount = Boolean(canUpdate && canViewFinancial);
+  const canEditAmount = Boolean(canUpdate && canViewFinancial && !isCancelled);
+  const canOpenCancel = Boolean(canUpdate && !isCancelled);
+  const canReturnToPipeline = Boolean(canUpdate && isCancelled && !card.pipeline_returned_at);
+  const showMoreMenu = canOpenCancel || canReturnToPipeline;
 
   const unitMutation = useMutation({
-    mutationFn: () => changeAgreementUnit(card.agreement_id, unitDraft.trim()),
+    mutationFn: () =>
+      changeAgreementUnit(card.agreement_id, unitIdentifier(unitDraft), {
+        phase_id: unitPhaseId || null,
+        inventory_asset_id: unitAssetId || null,
+      }),
     onSuccess: () => {
       setUnitConfirm(false);
       setError(null);
@@ -324,7 +373,7 @@ export function PurchaseDetailView({
 
   const amountMutation = useMutation({
     mutationFn: async () => {
-      const next = amountEdit.trim();
+      const next = numericAmount(amountEdit);
       if (!next) throw new Error(t.amountRequired);
       await patchAgreement(card.agreement_id, { amount: next });
     },
@@ -371,29 +420,10 @@ export function PurchaseDetailView({
     onError: (err: Error) => setError(uiError(err, tCommon('actionFailed'))),
   });
 
-  const docMutation = useMutation({
-    mutationFn: async () => {
-      if (!docId.trim()) return;
-      await linkDocument(docId.trim(), 'crm_agreement', card.agreement_id);
-    },
-    onSuccess: () => {
-      setDocId('');
-      setShowDocLink(false);
-      setError(null);
-      onRefresh();
-    },
-    onError: (err: Error) => setError(uiError(err, tCommon('actionFailed'))),
-  });
-
   const submitTask = (event: FormEvent) => {
     event.preventDefault();
     taskMutation.mutate();
   };
-  const submitDoc = (event: FormEvent) => {
-    event.preventDefault();
-    docMutation.mutate();
-  };
-
   return (
     <div className="crm-pd" data-testid={pageTestId}>
       <header className="crm-pd-pagehead">
@@ -418,38 +448,109 @@ export function PurchaseDetailView({
             <h1>{t.purchaseDetail}</h1>
           </div>
           <div className="crm-pd-pagehead__actions">
-            {canUploadDocuments ? (
-              <Button type="button" size="sm" variant="secondary" onClick={() => setShowDocLink((value) => !value)}>
-                <IhIcon name="documents" size={14} /> Belge Ekle
-              </Button>
+            {showMoreMenu ? (
+              <Button type="button" size="sm" variant="secondary" data-testid="purchase-more" onClick={() => setShowMore((value) => !value)}>{tCard('k00793b714f')}</Button>
             ) : null}
-            <Button type="button" size="sm" variant="secondary" onClick={() => setShowMore((value) => !value)}>{tCard('k00793b714f')}</Button>
           </div>
         </div>
-        {showDocLink && canUploadDocuments ? (
-          <form className="crm-pd-inline-form" onSubmit={submitDoc}>
-            <Input label={tCard('k62573cd707')} value={docId} onChange={(event) => setDocId(event.target.value)} />
-            <Button type="submit" size="sm" disabled={docMutation.isPending || !docId.trim()}>{tCard('kf58960e965')}</Button>
-          </form>
+        {showMore && showMoreMenu ? (
+          <div className="crm-pd-more" data-testid="purchase-more-menu">
+            {!isCancelled ? (
+              <HemenKiraToggle agreementId={card.agreement_id} value={Boolean(card.hemen_kira)} />
+            ) : null}
+            {canOpenCancel ? (
+              <Button type="button" size="sm" variant="secondary" data-testid="cancel-agreement" onClick={() => { setShowMore(false); setShowCancel(true); }}>
+                Anlaşmayı İptal Et
+              </Button>
+            ) : null}
+            {canReturnToPipeline ? (
+              <form
+                data-testid="return-pipeline-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (!returnStage || returnPending) return;
+                  setReturnPending(true);
+                  void returnAgreementToPipeline(card.agreement_id, returnStage)
+                    .then(async () => {
+                      setReturnStage('');
+                      setShowMore(false);
+                      await queryClient.invalidateQueries({ queryKey: ['crm'] });
+                      onRefresh();
+                    })
+                    .finally(() => setReturnPending(false));
+                }}
+              >
+                <Select label="Pipeline aşaması" value={returnStage} onChange={(event) => setReturnStage(event.target.value)}>
+                  <option value="">Seçin</option>
+                  <option value="yeni">Yeni</option>
+                  <option value="contacted">İletişime geçildi</option>
+                  <option value="following">Takip</option>
+                  <option value="proposal">Teklif</option>
+                  <option value="qualified">Potansiyel</option>
+                  <option value="negotiation">Görüşme</option>
+                  <option value="long_term">Uzun vade</option>
+                </Select>
+                <Button type="submit" size="sm" variant="secondary" disabled={!returnStage || returnPending}>Pipeline&apos;a geri döndür</Button>
+              </form>
+            ) : null}
+          </div>
         ) : null}
-        {showMore ? (
-          <div className="crm-pd-more">
-            <HemenKiraToggle agreementId={card.agreement_id} value={Boolean(card.hemen_kira)} />
-            {card.related_purchases?.length ? (
+        {card.related_purchases?.length ? (
               <div className="crm-pd-related" data-testid="purchase-related">
                 {card.related_purchases.map((item) => (
                   <span key={item.agreement_id}>
                     {item.project_label}
                     {item.unit_number ? ` · ${item.unit_number}` : ''}
-                    {item.is_historical_unit_change ? ' (daire değişikliği)' : item.is_current ? ' (açık)' : ''}
+                    {item.is_historical_unit_change ? ' (daire değişikliği)' : item.is_current && !isCancelled ? ' (açık)' : isCancelled && item.agreement_id === card.agreement_id ? ' (iptal)' : ''}
                   </span>
                 ))}
               </div>
             ) : null}
-          </div>
-        ) : null}
         {error ? <p className="crm-pd-error">{error}</p> : null}
       </header>
+      {showCancel ? (
+        <div className="crm-pd-modal" role="presentation" onClick={() => { if (!cancelPending) setShowCancel(false); }}>
+          <form
+            className="crm-pd-modal__panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cancel-agreement-title"
+            data-testid="cancel-agreement-dialog"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={(event) => {
+              event.preventDefault();
+              const reason = cancelReason.trim();
+              if (!reason || cancelPending) return;
+              setCancelPending(true);
+              setError(null);
+              void cancelAgreement(card.agreement_id, {
+                reason,
+                note: cancelNote.trim() || null,
+                cancelled_on: cancelDate || null,
+              })
+                .then(async () => {
+                  setShowCancel(false);
+                  setCancelReason('');
+                  setCancelNote('');
+                  setCancelDate('');
+                  await queryClient.invalidateQueries({ queryKey: ['crm'] });
+                  onRefresh();
+                })
+                .catch((err: Error) => setError(uiError(err, tCommon('actionFailed'))))
+                .finally(() => setCancelPending(false));
+            }}
+          >
+            <h2 id="cancel-agreement-title">Anlaşmayı İptal Et</h2>
+            <Input label="İptal nedeni" value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} required />
+            <Input label="İptal tarihi" type="date" value={cancelDate} onChange={(event) => setCancelDate(event.target.value)} />
+            <TextArea label="Not" value={cancelNote} onChange={(event) => setCancelNote(event.target.value)} />
+            <div className="crm-pd-modal__actions">
+              <Button type="button" size="sm" variant="secondary" disabled={cancelPending} onClick={() => setShowCancel(false)}>Vazgeç</Button>
+              <Button type="submit" size="sm" variant="danger" data-state={cancelPending || !cancelReason.trim() ? 'disabled' : 'enabled'} disabled={cancelPending || !cancelReason.trim()}>Anlaşmayı İptal Et</Button>
+            </div>
+          </form>
+        </div>
+      ) : null}
 
       <section className="crm-pd-hero" data-testid="sales-header">
         <div className="crm-pd-hero__main">
@@ -458,8 +559,14 @@ export function PurchaseDetailView({
           </p>
           {address ? <p className="crm-pd-hero__address">{address}</p> : null}
           <div className="crm-pd-hero__facts">
+            {showPhase ? (
+              <div>
+                <span>Faz</span>
+                <strong data-testid="purchase-card-phase">{phaseLabel || '—'}</strong>
+              </div>
+            ) : null}
             <div>
-              <span>{t.unit}</span>
+              <span>{showPhase ? 'Daire / Ünite' : t.unit}</span>
               <strong data-testid="purchase-card-unit">{unitLabel || '—'}</strong>
             </div>
             <div>
@@ -468,8 +575,14 @@ export function PurchaseDetailView({
             </div>
             <div>
               <span>{t.status}</span>
-              <StatusChip tone="success">{stage || '—'}</StatusChip>
+              <StatusChip tone={isCancelled ? 'default' : 'success'}>{isCancelled ? 'İptal Edildi' : stage || '—'}</StatusChip>
             </div>
+            {isCancelled ? (
+              <div data-testid="purchase-cancellation">
+                <span>İptal tarihi</span>
+                <strong>{displayDate(card.cancelled_at) || '—'}</strong>
+              </div>
+            ) : null}
             <div>
               <span>{t.purchaseDate}</span>
               <strong>{agreementDate || '—'}</strong>
@@ -489,36 +602,110 @@ export function PurchaseDetailView({
               </li>
             ))}
           </ul>
-          {canEditOwnership ? (
-            <AgreementOwnersEditor card={card} onChanged={onRefresh} />
+          {isCancelled ? <p data-testid="purchase-ownership-inactive">Sahiplik artık aktif değil.</p> : null}
+          {canEditOwnership && !isCancelled ? (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => setShowOwnersEdit((value) => !value)}
+              >
+                {showOwnersEdit ? 'Sahip Düzenlemeyi Kapat' : 'Sahipleri Düzenle'}
+              </Button>
+              {showOwnersEdit ? (
+                <AgreementOwnersEditor card={card} onChanged={onRefresh} />
+              ) : null}
+            </>
           ) : null}
         </div>
         <UnitHistorySection steps={card.unit_history} personId={personId} viewingAgreementId={card.agreement_id} />
       </section>
 
       <section className="crm-pd-grid">
-        <Card title={t.basics} testId="purchase-overview">
+        <Card title={t.basics} testId="purchase-overview" className="crm-pd-card--wide">
           <dl className="crm-pd-info">
-            <InfoRow label={tCard('k1e798a7b63')} value={projectName} dash />
-            <InfoRow label={tCard('k91977ddb0e')} value={unitLabel} dash />
-            {canEditUnit ? (
+            <InfoRow label="Proje" value={projectName} dash />
+            {showPhase ? <InfoRow label="Faz" value={phaseLabel} dash /> : null}
+            {isCancelled ? <InfoRow label="İptal nedeni" value={card.cancellation_reason} dash /> : null}
+            {isCancelled && card.cancellation_note ? <InfoRow label="İptal notu" value={card.cancellation_note} /> : null}
+            <InfoRow label={showPhase ? 'Daire / Ünite' : tCard('k91977ddb0e')} value={unitLabel} dash />
+            {phasedEmpty ? (
+              <p data-testid="phased-project-empty">Bu proje fazlı olarak tanımlı. Önce Projeler &gt; Fazlar bölümünden faz oluşturun.</p>
+            ) : null}
+            {canEditUnit && !phasedEmpty ? (
               <form
-                className="crm-pd-amount-edit"
+                className="crm-pd-unit-form"
                 data-testid="purchase-unit-edit"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  if (!unitDraft.trim() || unitDraft.trim() === (card.unit_number || '')) return;
+                  if (phaseRequired && !unitPhaseId) {
+                    setError('Faz seçin.');
+                    return;
+                  }
+                  const unchanged =
+                    unitDraft.trim() === (card.unit_number || '') &&
+                    (unitPhaseId || '') === (card.phase_id || '') &&
+                    (unitAssetId || '') === (card.inventory_asset_id || '');
+                  if (!unitDraft.trim() || unchanged) return;
+                  setError(null);
                   setUnitConfirm(true);
                 }}
               >
-                <Input label={tCard('k863ba1e79c')} value={unitDraft} onChange={(event) => setUnitDraft(event.target.value)} />
-                <Button type="submit" size="sm">{tCard('k068551b70a')}</Button>
+                {phaseRequired ? (
+                  <Select
+                    label="Faz"
+                    value={unitPhaseId}
+                    onChange={(event) => {
+                      setUnitPhaseId(event.target.value);
+                      setUnitAssetId('');
+                      setUnitDraft('');
+                    }}
+                  >
+                    <option value="">Seçin</option>
+                    {(catalogPhases ?? []).map((phase) => (
+                      <option key={phase.id} value={phase.id}>{phase.name}</option>
+                    ))}
+                  </Select>
+                ) : null}
+                {!phaseRequired || unitPhaseId ? (
+                  <>
+                    <Select
+                      label="Daire / Ünite"
+                      value={unitAssetId}
+                      onChange={(event) => {
+                        const selected = phaseOptions.find(
+                          (item) => item.inventory_asset_id === event.target.value || item.id === event.target.value,
+                        );
+                        setUnitAssetId(selected?.inventory_asset_id || event.target.value);
+                        if (selected?.unit_number) setUnitDraft(unitIdentifier(selected.unit_number));
+                        if (selected?.phase_id) setUnitPhaseId(selected.phase_id);
+                      }}
+                    >
+                      <option value="">Seçin</option>
+                      {phaseOptions.map((item) => (
+                        <option key={item.id} value={item.inventory_asset_id || item.id}>
+                          {unitSelectionLabel(item)}
+                        </option>
+                      ))}
+                    </Select>
+                    {phaseRequired && unitPhaseId && phaseOptions.length === 0 ? (
+                      <p data-testid="phase-units-empty">Bu faza henüz ünite atanmadı.</p>
+                    ) : null}
+                  </>
+                ) : null}
+                {!phaseRequired || unitPhaseId ? (
+                  <Input label="Daire / Ünite" value={unitDraft} onChange={(event) => { setUnitDraft(event.target.value); setUnitAssetId(''); }} />
+                ) : null}
+                <div className="crm-pd-unit-form__actions">
+                  <Button type="submit" size="sm">{tCard('k068551b70a')}</Button>
+                </div>
               </form>
             ) : null}
             {unitConfirm ? (
               <div role="dialog" aria-modal="true" data-testid="change-unit-confirm">
                 <p>
-                  Daire {card.unit_number || '—'} → {unitDraft.trim()} olacak. Kişi kaydı ve geçmişi durur.
+                  {phaseLabel ? `${phaseLabel} · ` : ''}Daire {card.unit_number || '—'} → {unitDraft.trim()} olacak. Kişi kaydı ve geçmişi durur.
                 </p>
                 <Button type="button" size="sm" disabled={unitMutation.isPending} onClick={() => unitMutation.mutate()}>{tCard('kd93b11b3fd')}</Button>
                 <Button type="button" size="sm" variant="ghost" onClick={() => setUnitConfirm(false)}>
@@ -529,14 +716,18 @@ export function PurchaseDetailView({
             <InfoRow label={t.purchasePrice} value={amount} dash />
             {canEditAmount ? (
               <form className="crm-pd-amount-edit" onSubmit={submitAmount} data-testid="purchase-amount-edit">
-                <Input
-                  label={t.editAmount}
-                  value={amountEdit}
-                  onChange={(event) => {
-                    setAmountOk(false);
-                    setAmountEdit(event.target.value);
-                  }}
-                />
+                <div className="crm-pd-money">
+                  {amountPrefix ? <span data-testid="purchase-amount-prefix">{amountPrefix}</span> : null}
+                  <Input
+                    label={t.editAmount}
+                    value={amountEdit}
+                    inputMode="decimal"
+                    onChange={(event) => {
+                      setAmountOk(false);
+                      setAmountEdit(numericAmount(event.target.value));
+                    }}
+                  />
+                </div>
                 <Button type="submit" size="sm" disabled={amountMutation.isPending}>
                   {amountMutation.isPending ? t.saving : t.saveAmount}
                 </Button>
@@ -587,7 +778,7 @@ export function PurchaseDetailView({
                             ? tCard('deposit')
                             : row.label}
                     </span>
-                    <strong>{row.value}</strong>
+                    <strong>{formatAgreementAmount(row.value, card.currency) || row.value}</strong>
                   </li>
                 ))}
               </ul>
@@ -616,7 +807,7 @@ export function PurchaseDetailView({
         <Card
           title={tCard('k780d7a72db')}
           action={
-            <Link className="crm-pd-link" href={`/workspaces/crm/agreements?project=${encodeURIComponent(card.project_group)}`}>
+            <Link className="ih-btn ih-btn--ghost ih-btn--sm" href={`/workspaces/crm/agreements?project=${encodeURIComponent(card.project_group)}`}>
               Projeyi Aç
             </Link>
           }
@@ -632,99 +823,43 @@ export function PurchaseDetailView({
         </Card>
 
         <Card
-          title={`Satın Alma Belgeleri ${
-            (showDocGroups ? groupedVisible.length : purchaseDocs.length)
-              ? `(${showDocGroups ? groupedVisible.length : purchaseDocs.length})`
-              : ''
-          }`}
+          title={`Belgeler${allDocumentCount ? ` (${allDocumentCount})` : ''}`}
           testId="purchase-documents"
-          action={
-            canUploadDocuments ? (
-              <button type="button" onClick={() => setShowDocLink(true)}>
-                Belge Ekle
-              </button>
-            ) : null
-          }
+          className="crm-pd-card--wide"
         >
-          {showDocGroups ? (
-            <div className="crm-pd-doc-groups">
-              {documentGroups.map((group) => {
-                const visible = group.documents.filter((item) => !item.hidden_from_view);
-                return (
-                  <div
-                    key={group.agreement_id}
-                    className="crm-pd-doc-group"
-                    data-testid={group.is_current ? 'current-unit-documents' : `previous-unit-documents-${group.unit_number}`}
-                  >
-                    <h3>
-                      {group.is_current ? 'Güncel Daire Belgeleri' : 'Önceki Daire Belgeleri'} — {group.unit_number}
-                    </h3>
-                    {visible.length ? (
-                      <DocumentGallery
-                        documents={group.documents}
-                        entityType="crm_agreement"
-                        entityId={group.agreement_id}
-                        canUpload={canUploadDocuments}
-                        canEditMeta={canUploadDocuments}
-                        canUnlink={canUpdate}
-                        canArchive={canArchiveDocuments}
-                        onChanged={onRefresh}
-                      />
-                    ) : (
-                      <p className="crm-pd-empty">{tCard('k092bd5c8fd')}</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ) : purchaseDocs.length ? (
+          {personId ? (
             <DocumentGallery
-              documents={purchaseDocs as CrmPurchaseDocument[]}
-              entityType="crm_agreement"
-              entityId={card.agreement_id}
+              documents={allDocuments}
+              entityType="crm_contact"
+              entityId={personId}
               canUpload={canUploadDocuments}
               canEditMeta={canUploadDocuments}
-              canUnlink={canUpdate}
+              canUnlink={false}
               canArchive={canArchiveDocuments}
               onChanged={onRefresh}
             />
           ) : (
-            <p className="crm-pd-empty">{tCard('k41635ec1f6')}</p>
+            <p className="crm-pd-empty">Kişi kaydı bulunamadı.</p>
           )}
-          {personDocs.length ? (
-            <div className="crm-pd-person-docs" data-testid="sales-person-documents">
-              <h3>{tCard('personDocuments')} <span>{personDocs.length}</span></h3>
-              <p>{tCard('k2277ddaf1f')}</p>
-              <DocumentGallery
-                documents={personDocs}
-                entityType="crm_contact"
-                entityId={card.primary_contact_id}
-                canUpload={canUploadDocuments}
-                canEditMeta={canUploadDocuments}
-                canUnlink={canUpdate}
-                canArchive={canArchiveDocuments}
-                onChanged={onRefresh}
-              />
-            </div>
-          ) : null}
         </Card>
 
         <Card
           title={tCard('kee87b9f9b8')}
           testId="purchase-related-tasks"
+          className="crm-pd-card--wide"
           action={
-            <>
+            <div className="crm-pd-task-actions">
               {canAct ? (
-                <button type="button" onClick={() => setShowTaskForm((value) => !value)}>
+                <Button type="button" size="sm" variant="secondary" onClick={() => setShowTaskForm((value) => !value)}>
                   Görev Oluştur
-                </button>
+                </Button>
               ) : null}
               {personId ? (
-                <Link className="crm-pd-link" href={`/workspaces/crm/contacts/${personId}?tab=tasks`}>
+                <Link className="ih-btn ih-btn--ghost ih-btn--sm" href={`/workspaces/crm/contacts/${personId}?tab=tasks&agreement=${card.agreement_id}`}>
                   Tümünü Gör
                 </Link>
               ) : null}
-            </>
+            </div>
           }
         >
           {showTaskForm ? (

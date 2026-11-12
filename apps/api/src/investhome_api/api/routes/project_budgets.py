@@ -34,6 +34,7 @@ from investhome_api.schemas.project_budget_foundation import (
     CostCodeResponse,
     CostCodeUpdate,
 )
+from investhome_api.models.project_budget import BudgetAudience
 from investhome_api.services import project_budget_service as svc
 from investhome_api.services.document_validation import read_and_validate_csv_import
 
@@ -142,19 +143,21 @@ def delete_cost_code(
 @router.get("/projects/{project_id}/budget-summary", response_model=BudgetSummaryResponse)
 def get_budget_summary(
     project_id: UUID,
+    audience: BudgetAudience | None = Query(default=None),
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("projects", "view")),
 ) -> BudgetSummaryResponse:
-    return svc.get_budget_summary(db, user, project_id)
+    return svc.get_budget_summary(db, user, project_id, audience=audience)
 
 
 @router.get("/projects/{project_id}/budgets", response_model=BudgetVersionListResponse)
 def list_project_budgets(
     project_id: UUID,
+    audience: BudgetAudience | None = Query(default=None),
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("projects", "view")),
 ) -> BudgetVersionListResponse:
-    return svc.list_versions(db, user, project_id)
+    return svc.list_versions(db, user, project_id, audience=audience)
 
 
 @router.post(
@@ -176,10 +179,11 @@ def create_project_budget(
 def get_project_budget(
     project_id: UUID,
     budget_id: UUID,
+    audience: BudgetAudience | None = Query(default=None),
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("projects", "view")),
 ) -> BudgetVersionResponse:
-    return svc.get_version(db, user, project_id, budget_id)
+    return svc.get_version(db, user, project_id, budget_id, audience=audience)
 
 
 @router.patch("/projects/{project_id}/budgets/{budget_id}", response_model=BudgetVersionResponse)
@@ -273,6 +277,7 @@ def list_budget_lines(
     active_only: bool = Query(default=True),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=100, ge=1, le=500),
+    audience: BudgetAudience | None = Query(default=None),
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("projects", "view")),
 ) -> BudgetLineListResponse:
@@ -287,6 +292,7 @@ def list_budget_lines(
         active_only=active_only,
         page=page,
         page_size=page_size,
+        audience=audience,
     )
 
 

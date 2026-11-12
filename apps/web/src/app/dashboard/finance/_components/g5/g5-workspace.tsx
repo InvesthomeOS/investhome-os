@@ -120,6 +120,17 @@ function buildG5Labels(t: (key: string) => string): Record<string, string> {
     'wireStatus.cancelled',
     'investorPayTitle',
     'investorPaySubtitle',
+    'commitmentLedgerTitle',
+    'contractedProfit',
+    'contractedProfitHint',
+    'contractedProfitBlank',
+    'contractedProfitInvalid',
+    'committedAmount',
+    'addCommitment',
+    'saveCommitment',
+    'commitmentSaveError',
+    'selectProject',
+    'selectInvestor',
     'investorKind.reservation',
     'investorKind.deposit',
     'investorKind.progress',
@@ -535,6 +546,19 @@ export function FinanceG5Workspace() {
             transactions={transactions}
             locale={locale}
             labels={labels}
+            canCreate={canCreate}
+            canUpdate={canUpdate}
+            projectOptions={projectOptions}
+            investorOptions={investorOptions}
+            onCommitmentsChanged={() => {
+              void fetchFundingCommitments({
+                page_size: 100,
+                sort_by: 'updated_at',
+                sort_order: 'desc',
+              })
+                .then((fundingRes) => setCommitments(fundingRes.items))
+                .catch(() => setError(t('loadError')));
+            }}
           />
         ) : null}
         {!loading && view === 'vendor_payments' ? (

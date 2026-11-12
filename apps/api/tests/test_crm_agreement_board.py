@@ -148,14 +148,14 @@ def test_board_counts_more_than_two_hundred_agreements(client: TestClient, db: S
 
     listed = client.get("/crm/agreements", params={"page": 1, "page_size": 10})
     assert listed.status_code == 200, listed.text
-    assert listed.json()["total"] == 211
+    assert listed.json()["total"] == 210
     assert len(listed.json()["items"]) == 10
 
     page_two = client.get(
         "/crm/agreements",
         params={"page": 2, "page_size": 10, "sort_by": "agreement_date", "sort_dir": "desc"},
     )
-    assert page_two.json()["total"] == 211
+    assert page_two.json()["total"] == 210
     assert len(page_two.json()["items"]) == 10
     page_one_ids = {item["id"] for item in listed.json()["items"]}
     assert page_one_ids.isdisjoint({item["id"] for item in page_two.json()["items"]})
@@ -163,8 +163,8 @@ def test_board_counts_more_than_two_hundred_agreements(client: TestClient, db: S
     board = client.get("/crm/agreements/board", params={"page_size": 25})
     assert board.status_code == 200, board.text
     body = board.json()
-    assert body["kpis"]["total"] == 211
-    assert body["kpis"]["won"] == 206
+    assert body["kpis"]["total"] == 210
+    assert body["kpis"]["won"] == 205
     assert body["kpis"]["progress"] == 4
     assert body["kpis"]["unstaged"] == 1
     assert "Beyond" in body["responsibles"]
@@ -173,14 +173,14 @@ def test_board_counts_more_than_two_hundred_agreements(client: TestClient, db: S
     assert "Kazanıldı" in body["stages"]
     assert "Aşamasız" in body["stages"]
     won = next(column for column in body["columns"] if column["stage"] == "Kazanıldı")
-    assert won["total"] == 206
+    assert won["total"] == 205
     assert len(won["items"]) == 25
 
     uniloft = client.get("/crm/agreements", params={"project_group": "uniloft", "page_size": 10})
     uniloft_board = client.get("/crm/agreements/board", params={"project_group": "uniloft"})
-    assert uniloft.json()["total"] == 209
-    assert uniloft_board.json()["kpis"]["total"] == 209
-    assert uniloft_board.json()["kpis"]["won"] == 204
+    assert uniloft.json()["total"] == 208
+    assert uniloft_board.json()["kpis"]["total"] == 208
+    assert uniloft_board.json()["kpis"]["won"] == 203
 
     temple = client.get("/crm/agreements", params={"project_group": "the_temple", "page_size": 10})
     temple_board = client.get("/crm/agreements/board", params={"project_group": "the_temple"})
@@ -228,14 +228,14 @@ def test_board_counts_more_than_two_hundred_agreements(client: TestClient, db: S
         assert cards.status_code == 200, cards.text
         payload = cards.json()
         reported_total = payload["total"]
-        assert payload["total"] == 204
+        assert payload["total"] == 203
         seen.extend(item["id"] for item in payload["items"])
         if page >= payload["pages"]:
             break
         page += 1
-    assert reported_total == 204
-    assert len(seen) == 204
-    assert len(set(seen)) == 204
+    assert reported_total == 203
+    assert len(seen) == 203
+    assert len(set(seen)) == 203
     assert str(beyond.id) == seen[-1]
     assert str(beyond.id) not in seen[:200]
 

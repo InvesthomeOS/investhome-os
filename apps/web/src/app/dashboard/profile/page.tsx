@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 import { MfaEnrollCard } from '@/components/auth/mfa-enroll-card';
+import { NotificationPreferences } from './notification-preferences';
 import { changePassword, updateMyProfile } from '@/lib/api/auth';
 import { uiError } from '@/lib/i18n/ui-error';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -199,6 +200,8 @@ export default function ProfilePage() {
       </section>
 
       <MfaEnrollCard mfaEnabled={Boolean(user.mfa_enabled)} onEnabled={refresh} />
+
+      <NotificationPreferences />
 
       <section className="admin-detail">
         <h2>{t('changePassword')}</h2>

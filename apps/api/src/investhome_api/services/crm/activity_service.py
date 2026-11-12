@@ -762,6 +762,16 @@ def update_activity(
     payload: CrmActivityUpdate,
 ) -> CrmActivityDetail:
     data = payload.model_dump(exclude_unset=True)
+    submitted_reminders = data.pop("reminders", None)
+    due_on = data.pop("due_on", None)
+    due_time = data.pop("due_time", None)
+    if due_on is not None or due_time:
+        data["due_date"] = _combine_task_due(
+            due_date=None,
+            due_on=due_on,
+            due_time=due_time,
+            timezone=data.get("timezone") or activity.timezone,
+        )
     incoming_meta = data.get("metadata_json")
     if incoming_meta is not None:
         current_meta = activity.metadata_json if isinstance(activity.metadata_json, dict) else {}
@@ -780,6 +790,8 @@ def update_activity(
         data["metadata_json"] = merged
     for key, value in data.items():
         setattr(activity, key, value)
+    if submitted_reminders is not None:
+        _sync_activity_reminders(db, activity, payload.reminders or [])
     activity.updated_by = user.id
     if payload.task_status is not None and payload.task_status != CrmTaskStatus.COMPLETED:
         activity.completed_at = None
@@ -859,13 +871,36 @@ def duplicate_activity(db: Session, user: User, activity: CrmActivity) -> CrmAct
     return create_activity(db, user, payload)
 
 
-def complete_task(db: Session, user: User, activity: CrmActivity) -> CrmActivityDetail:
+def _cancel_unsent_reminders(db: Session, activity: CrmActivity) -> None:
+    from investhome_api.models.crm_activity import CrmActivityReminder
+
+    pending = db.scalars(
+        select(CrmActivityReminder).where(
+            CrmActivityReminder.activity_id == activity.id,
+            CrmActivityReminder.is_sent.is_(False),
+        )
+    ).all()
+    for reminder in pending:
+        db.delete(reminder)
+
+
+def complete_task(
+    db: Session,
+    user: User,
+    activity: CrmActivity,
+    *,
+    outcome: str | None = None,
+) -> CrmActivityDetail:
     if not _can_manage_tasks(user):
         raise ValueError("crm.activities.errors.manage_tasks_required")
+    note = (outcome or "").strip() or None
     activity.task_status = CrmTaskStatus.COMPLETED
     activity.status = CrmActivityStatus.COMPLETED
     activity.completed_at = datetime.now(tz=UTC)
     activity.updated_by = user.id
+    if note:
+        activity.outcome = note
+    _cancel_unsent_reminders(db, activity)
     _apply_follow_up_rules(db, activity)
     if activity.entity_type == CrmActivityEntityType.CONTACT:
         db.add(
@@ -875,7 +910,7 @@ def complete_task(db: Session, user: User, activity: CrmActivity) -> CrmActivity
                 activity_type=CrmActivityType.SYSTEM_EVENT,
                 activity_category=CrmActivityCategory.SYSTEM,
                 title=f"Görev tamamlandı: {activity.title}",
-                description=activity.description,
+                description=note,
                 status=CrmActivityStatus.COMPLETED,
                 created_by=user.id,
                 updated_by=user.id,
@@ -981,24 +1016,83 @@ def _task_lead_clause(lead_id: UUID):
     )
 
 
+def _task_zone(timezone: str | None) -> ZoneInfo:
+    name = (timezone or "").strip() or "Europe/Istanbul"
+    try:
+        return ZoneInfo(name)
+    except Exception:
+        return _TASK_TZ
+
+
 def _combine_task_due(
-    *, due_date: datetime | None, due_on: date | None, due_time: str | None
+    *,
+    due_date: datetime | None,
+    due_on: date | None,
+    due_time: str | None,
+    timezone: str | None = None,
 ) -> datetime | None:
+    zone = _task_zone(timezone)
+    if due_on is not None or due_time:
+        if due_on is None:
+            raise ActivityValidationError("Tarih gerekli")
+        if not due_time:
+            raise ActivityValidationError("Saat gerekli")
+        if not _DUE_TIME_RE.fullmatch(due_time.strip()):
+            raise ActivityValidationError("Saat geçersiz")
+        hour, minute = (int(part) for part in due_time.strip().split(":"))
+        local = datetime.combine(due_on, time(hour, minute), tzinfo=zone)
+        return local.astimezone(UTC)
     if due_date is not None:
         if due_date.tzinfo is None:
-            return due_date.replace(tzinfo=_TASK_TZ).astimezone(UTC)
+            return due_date.replace(tzinfo=zone).astimezone(UTC)
         return due_date.astimezone(UTC)
-    if due_on is None and not due_time:
-        return None
-    if due_on is None:
-        raise ActivityValidationError("Tarih gerekli")
-    if not due_time:
-        raise ActivityValidationError("Saat gerekli")
-    if not _DUE_TIME_RE.fullmatch(due_time.strip()):
-        raise ActivityValidationError("Saat geçersiz")
-    hour, minute = (int(part) for part in due_time.strip().split(":"))
-    local = datetime.combine(due_on, time(hour, minute), tzinfo=_TASK_TZ)
-    return local.astimezone(UTC)
+    return None
+
+
+def _reminder_instant(value: datetime) -> datetime:
+    instant = value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+    return instant.astimezone(UTC).replace(microsecond=0)
+
+
+def _channel_value(channel: object) -> str:
+    return str(channel.value if hasattr(channel, "value") else channel)
+
+
+def _sync_activity_reminders(
+    db: Session,
+    activity: CrmActivity,
+    reminders: list,
+) -> None:
+    """Replace unsent reminders with the submitted set. Sent rows stay as history."""
+    desired: list[tuple[str, datetime, int | None]] = []
+    for item in reminders:
+        channel = _channel_value(item.channel)
+        remind_at = _reminder_instant(item.remind_at)
+        desired.append((channel, remind_at, item.offset_minutes))
+    desired_keys = set(desired)
+    for row in list(activity.reminders):
+        if row.is_sent:
+            continue
+        row_key = (_channel_value(row.channel), _reminder_instant(row.remind_at), row.offset_minutes)
+        if row_key not in desired_keys:
+            db.delete(row)
+    existing_keys = {
+        (_channel_value(row.channel), _reminder_instant(row.remind_at), row.offset_minutes)
+        for row in activity.reminders
+    }
+    for channel, remind_at, offset in desired:
+        if (channel, remind_at, offset) in existing_keys:
+            continue
+        db.add(
+            CrmActivityReminder(
+                activity_id=activity.id,
+                channel=channel,
+                remind_at=remind_at,
+                offset_minutes=offset,
+            )
+        )
+        existing_keys.add((channel, remind_at, offset))
+    activity.reminder_date = min((item[1] for item in desired), default=None)
 
 
 def _resolve_lead_task_contact(db: Session, lead_id: UUID) -> tuple[object, UUID | None]:
@@ -1325,6 +1419,43 @@ def _apply_task_scope(
     return query
 
 
+DEFAULT_TASK_REMINDER_MINUTES = 10
+
+
+def _default_new_task_reminders(db: Session, user: User, payload: CrmTaskCreate, due_date: datetime | None):
+    """10 minutes before, in-app. Email only when that preference is already on.
+
+    An explicit reminder list, including an empty list, is left unchanged.
+    Missing due date/time does not invent a reminder. Existing tasks are not rewritten.
+    """
+    if payload.reminders is not None:
+        return payload.reminders
+    if due_date is None:
+        return None
+    from investhome_api.models.crm_activity import CrmReminderChannel
+    from investhome_api.schemas.crm_activities import CrmActivityReminderInput
+    from investhome_api.services.user_notifications import email_enabled
+
+    remind_at = due_date - timedelta(minutes=DEFAULT_TASK_REMINDER_MINUTES)
+    recipient_id = payload.assigned_user_id or user.id
+    reminders = [
+        CrmActivityReminderInput(
+            channel=CrmReminderChannel.IN_APP,
+            remind_at=remind_at,
+            offset_minutes=DEFAULT_TASK_REMINDER_MINUTES,
+        )
+    ]
+    if email_enabled(db, recipient_id, "task_reminder"):
+        reminders.append(
+            CrmActivityReminderInput(
+                channel=CrmReminderChannel.EMAIL,
+                remind_at=remind_at,
+                offset_minutes=DEFAULT_TASK_REMINDER_MINUTES,
+            )
+        )
+    return reminders
+
+
 def create_workspace_task(
     db: Session, user: User, payload: CrmTaskCreate, *, commit: bool = True
 ) -> CrmActivityDetail:
@@ -1346,8 +1477,14 @@ def create_workspace_task(
         if agreement is not None:
             contact_id = contact_id or agreement.contact_id
             project_group = project_group or agreement.project_group
+    timezone = (payload.timezone or "").strip() or (
+        "Europe/Istanbul" if lead_id is not None else None
+    )
     due_date = _combine_task_due(
-        due_date=payload.due_date, due_on=payload.due_on, due_time=payload.due_time
+        due_date=payload.due_date,
+        due_on=payload.due_on,
+        due_time=payload.due_time,
+        timezone=timezone,
     )
     if lead_id is not None and due_date is None:
         raise ActivityValidationError("Tarih ve saat gerekli")
@@ -1368,9 +1505,10 @@ def create_workspace_task(
     metadata = dict(payload.metadata_json or {})
     metadata["task_links"] = {key: value for key, value in links.items() if value}
     related_type = CrmActivityEntityType.TRANSACTION if agreement_id else None
-    timezone = (payload.timezone or "").strip() or (
-        "Europe/Istanbul" if lead_id is not None else None
-    )
+    reminders = _default_new_task_reminders(db, user, payload, due_date)
+    reminder_date = payload.reminder_date
+    if reminder_date is None and reminders:
+        reminder_date = min(_reminder_instant(item.remind_at) for item in reminders)
     create_payload = CrmActivityCreate(
         entity_type=entity_type,
         entity_id=entity_id,
@@ -1386,11 +1524,11 @@ def create_workspace_task(
         owner_id=user.id,
         assigned_user_id=payload.assigned_user_id,
         due_date=due_date,
-        reminder_date=payload.reminder_date,
+        reminder_date=reminder_date,
         timezone=timezone,
         visibility=payload.visibility,
         metadata_json=metadata,
-        reminders=payload.reminders,
+        reminders=reminders,
     )
     return create_activity(db, user, create_payload, commit=commit)
 
@@ -1434,7 +1572,9 @@ def list_tasks_for_lead(db: Session, lead_id: UUID):
     return items
 
 
-def create_workspace_note(db: Session, user: User, payload: CrmNoteCreate) -> CrmActivityDetail:
+def create_workspace_note(
+    db: Session, user: User, payload: CrmNoteCreate, *, commit: bool = True
+) -> CrmActivityDetail:
     from investhome_api.models.crm_agreement import CrmAgreement
 
     contact_id = payload.contact_id
@@ -1486,7 +1626,7 @@ def create_workspace_note(db: Session, user: User, payload: CrmNoteCreate) -> Cr
         metadata_json=metadata,
         start_date=datetime.now(tz=UTC),
     )
-    return create_activity(db, user, create_payload)
+    return create_activity(db, user, create_payload, commit=commit)
 
 
 def list_tasks(
@@ -1825,6 +1965,41 @@ def create_follow_up(db: Session, user: User, payload: CrmFollowUpCreate) -> Crm
             contact.next_follow_up_at = payload.due_date
             db.commit()
     return detail
+
+
+def reschedule_task(
+    db: Session,
+    user: User,
+    activity: CrmActivity,
+    *,
+    due_date: datetime,
+) -> CrmActivityDetail:
+    """Move the due time and replace the unsent 10-minute reminder."""
+    if not _can_manage_tasks(user):
+        raise ValueError("crm.activities.errors.manage_tasks_required")
+    if activity.task_status == CrmTaskStatus.COMPLETED or activity.status == CrmActivityStatus.COMPLETED:
+        raise ValueError("Tamamlanan görev ertelenemez")
+    if due_date.tzinfo is None:
+        due_date = due_date.replace(tzinfo=UTC)
+    activity.due_date = due_date
+    activity.reminder_date = due_date - timedelta(minutes=DEFAULT_TASK_REMINDER_MINUTES)
+    activity.updated_by = user.id
+    _cancel_unsent_reminders(db, activity)
+    from investhome_api.models.crm_activity import CrmActivityReminder, CrmReminderChannel
+
+    db.add(
+        CrmActivityReminder(
+            activity_id=activity.id,
+            channel=CrmReminderChannel.IN_APP,
+            remind_at=activity.reminder_date,
+            offset_minutes=DEFAULT_TASK_REMINDER_MINUTES,
+            is_sent=False,
+        )
+    )
+    db.commit()
+    loaded = get_activity_or_none(db, activity.id)
+    assert loaded is not None
+    return _serialize_detail(loaded)
 
 
 def complete_follow_up(db: Session, user: User, activity: CrmActivity) -> CrmActivityDetail:

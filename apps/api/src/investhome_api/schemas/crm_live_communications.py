@@ -229,10 +229,16 @@ class WhatsAppSendRequest(BaseModel):
     idempotency_key: str | None = Field(default=None, max_length=80)
 
 
+class EmailAttachmentUpload(BaseModel):
+    filename: str = Field(min_length=1, max_length=255)
+    content_base64: str = Field(min_length=1, max_length=26_000_000)
+
+
 class EmailSendRequest(BaseModel):
     mode: str = Field(default="new", max_length=20)
     contact_id: UUID | None = None
     lead_id: UUID | None = None
+    agreement_id: UUID | None = None
     communication_id: UUID | None = None
     activity_id: UUID | None = None
     to: list[str] = Field(default_factory=list, max_length=20)
@@ -241,6 +247,8 @@ class EmailSendRequest(BaseModel):
     subject: str = Field(min_length=1, max_length=500)
     body_text: str = Field(min_length=1, max_length=20000)
     body_html: str | None = Field(default=None, max_length=50000)
+    document_ids: list[UUID] = Field(default_factory=list, max_length=10)
+    uploads: list[EmailAttachmentUpload] = Field(default_factory=list, max_length=10)
 
 
 class EmailReplyContextResponse(BaseModel):

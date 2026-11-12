@@ -20,11 +20,15 @@ export const CRM_CONTACT_UPDATED_EVENT = 'crm-contact-updated';
 
 type ContactCardOpenOptions = {
   projectGroup?: string;
+  leadId?: string | null;
+  agreementId?: string | null;
 };
 
 type ContactCardContextValue = {
   contactId: string | null;
   purchaseId: string | null;
+  focusLeadId: string | null;
+  focusAgreementId: string | null;
   openContact: (contactId: string, options?: ContactCardOpenOptions) => void;
   openPurchase: (agreementId: string) => void;
   closeContact: () => void;
@@ -61,6 +65,10 @@ export function ContactCardProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [contactId, setContactId] = useState<string | null>(() => (typeof window === 'undefined' ? null : readParam('contact')));
   const [purchaseId, setPurchaseId] = useState<string | null>(() => (typeof window === 'undefined' ? null : readParam('purchase')));
+  const [focusLeadId, setFocusLeadId] = useState<string | null>(() => (typeof window === 'undefined' ? null : readParam('lead')));
+  const [focusAgreementId, setFocusAgreementId] = useState<string | null>(() =>
+    typeof window === 'undefined' ? null : readParam('agreement') || readParam('purchase'),
+  );
   const fullPage = isContactFullPage(pathname);
   const pathPersonId = personIdFromPath(pathname);
   const personPage = fullPage || Boolean(pathname?.includes('/satin-alma/'));
@@ -68,6 +76,8 @@ export function ContactCardProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setContactId(fullPage ? null : readParam('contact'));
     setPurchaseId(personPage ? null : readParam('purchase'));
+    setFocusLeadId(readParam('lead'));
+    setFocusAgreementId(readParam('agreement') || readParam('purchase'));
     const purchase = readParam('purchase');
     if (purchase && fullPage && pathPersonId && !pathname?.includes('/satin-alma/')) {
       router.replace(salesDetailUrl(pathPersonId, purchase) as Route);
@@ -78,6 +88,8 @@ export function ContactCardProvider({ children }: { children: ReactNode }) {
     const onPopState = () => {
       setContactId(fullPage ? null : readParam('contact'));
       setPurchaseId(personPage ? null : readParam('purchase'));
+      setFocusLeadId(readParam('lead'));
+      setFocusAgreementId(readParam('agreement') || readParam('purchase'));
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
@@ -103,16 +115,30 @@ export function ContactCardProvider({ children }: { children: ReactNode }) {
   );
 
   const openContact = useCallback(
-    (id: string) => {
+    (id: string, options?: ContactCardOpenOptions) => {
+      const focus = new URLSearchParams();
+      if (options?.leadId) focus.set('lead', options.leadId);
+      if (options?.agreementId) focus.set('agreement', options.agreementId);
+      const extra = focus.toString();
+      setFocusLeadId(options?.leadId || null);
+      setFocusAgreementId(options?.agreementId || null);
       if (fullPage) {
-        router.push(`/workspaces/crm/contacts/${id}` as Route);
+        router.push((extra ? `/workspaces/crm/contacts/${id}?${extra}` : `/workspaces/crm/contacts/${id}`) as Route);
         return;
       }
       setPurchaseId(null);
       setContactId(id);
-      pushUrl(id, null);
+      const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
+      params.delete('purchase');
+      params.set('contact', id);
+      if (options?.leadId) params.set('lead', options.leadId);
+      else params.delete('lead');
+      if (options?.agreementId) params.set('agreement', options.agreementId);
+      else params.delete('agreement');
+      const qs = params.toString();
+      router.push((qs ? `${pathname}?${qs}` : pathname) as Route, { scroll: false });
     },
-    [fullPage, pushUrl, router],
+    [fullPage, pathname, router],
   );
 
   const openPurchase = useCallback(
@@ -154,12 +180,14 @@ export function ContactCardProvider({ children }: { children: ReactNode }) {
     () => ({
       contactId: fullPage ? null : contactId,
       purchaseId,
+      focusLeadId,
+      focusAgreementId,
       openContact,
       openPurchase,
       closeContact,
       closePurchase,
     }),
-    [closeContact, closePurchase, contactId, fullPage, openContact, openPurchase, purchaseId],
+    [closeContact, closePurchase, contactId, focusAgreementId, focusLeadId, fullPage, openContact, openPurchase, purchaseId],
   );
 
   return (
@@ -181,8 +209,14 @@ export function useContactCard(): ContactCardContextValue {
   return {
     contactId: null,
     purchaseId: null,
-    openContact: (id: string) => {
-      router.push(`/workspaces/crm/contacts/${id}` as Route);
+    focusLeadId: null,
+    focusAgreementId: null,
+    openContact: (id: string, options?: ContactCardOpenOptions) => {
+      const params = new URLSearchParams();
+      if (options?.leadId) params.set('lead', options.leadId);
+      if (options?.agreementId) params.set('agreement', options.agreementId);
+      const qs = params.toString();
+      router.push((qs ? `/workspaces/crm/contacts/${id}?${qs}` : `/workspaces/crm/contacts/${id}`) as Route);
     },
     openPurchase: (id: string) => {
       router.push(purchaseCardUrl(id) as Route);

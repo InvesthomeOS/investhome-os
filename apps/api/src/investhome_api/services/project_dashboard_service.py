@@ -166,6 +166,7 @@ def _budget_maps(
         return spent, totals
 
     from investhome_api.models.project_budget import (
+        BudgetAudience,
         BudgetVersionStatus,
         ProjectBudgetLine,
         ProjectBudgetVersion,
@@ -183,6 +184,7 @@ def _budget_maps(
             version = db.scalars(
                 select(ProjectBudgetVersion).where(
                     ProjectBudgetVersion.project_id == project_id,
+                    ProjectBudgetVersion.audience == BudgetAudience.INTERNAL,
                     ProjectBudgetVersion.is_current.is_(True),
                     ProjectBudgetVersion.status == BudgetVersionStatus.APPROVED,
                 )
@@ -240,7 +242,7 @@ def _team_map(db: Session, project_ids: list[UUID]) -> dict[UUID, list[ProjectTe
 
 
 def _inventory_counts(
-    db: Session, project_ids: list[UUID]
+    db: Session, project_ids: list[UUID], phase_id: UUID | None = None
 ) -> dict[str, int]:
     empty = {
         "available": 0,
@@ -293,6 +295,7 @@ def _inventory_counts(
             InventoryAsset.project_id.in_(project_ids),
             InventoryAsset.archived_at.is_(None),
             operational_child_clause(InventoryAsset.is_demo, InventoryAsset.project_id),
+            *([InventoryAsset.phase_id == phase_id] if phase_id is not None else []),
         )
     ).one()
     return {

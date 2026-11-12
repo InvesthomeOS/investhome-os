@@ -84,7 +84,7 @@ def test_empty_current_uses_original_b08_values():
     sources = _apply_unit_change_value_display(summary, current, [current, historical])
     assert [row.unit_number for row in sources] == ["B08"]
     assert summary.amount == "232687.00"
-    assert summary.amount_label == "$232,687 USD"
+    assert summary.amount_label == "$232,687"
     assert summary.begin_date == "2024-02-13"
     assert summary.close_date == "2024-12-31"
 
@@ -127,7 +127,7 @@ def test_filled_current_is_not_overwritten():
         unit_number="307",
         amount="244719.00",
         currency="USD",
-        amount_label="$244,719 USD",
+        amount_label="$244,719",
         begin_date="2023-10-31",
         close_date="2023-11-07",
     )
@@ -149,7 +149,7 @@ def test_distinct_historical_amounts_are_both_shown():
     amount, currency, label = _coalesce_purchase_amount(None, None, [first, second])
     assert amount == "224454.00 + 227500.00"
     assert currency == "USD"
-    assert label == "$224,454 USD + $227,500 USD"
+    assert label == "$224,454 + $227,500"
 
 
 def test_unit_identifying_extras_are_not_copied():

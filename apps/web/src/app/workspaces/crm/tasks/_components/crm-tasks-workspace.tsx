@@ -11,10 +11,11 @@ import { Button, ErrorState, Input, Select, TextArea } from '@investhome/ui';
 
 import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
 import { fetchUsers } from '@/lib/api/auth';
+import { useAuth } from '@/lib/auth/auth-context';
 import { LIST_SEARCH_DEBOUNCE_MS, useDebouncedQueryParam, useListQueryPatch } from '@/lib/crm/list-query';
 import { confirmDiscardUnsaved, saveFailedMessage } from '@/lib/crm/unsaved-form';
 import { useCrmAccess } from '@/lib/crm/use-crm-access';
-import { completeTask, createTask, fetchActivity, fetchTasks, updateActivity } from '@/workspaces/crm/api/activities';
+import { completeTask, createTask, fetchActivity, fetchTasks, rescheduleTask, updateActivity } from '@/workspaces/crm/api/activities';
 import { fetchAgreements } from '@/workspaces/crm/api/agreements';
 import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 import { salesDetailUrl } from '@/workspaces/crm/contact-card/pilot-people';
@@ -22,6 +23,7 @@ import { activityQueryKeys } from '@/workspaces/crm/hooks/use-activities';
 import { contactQueries } from '@/workspaces/crm/hooks/use-contacts';
 import type {
   ActivityListParams,
+  CrmActivityDetail,
   CrmActivityPriority,
   CrmActivitySummary,
   CrmTaskStatus,
@@ -75,9 +77,16 @@ type TaskForm = {
   agreementId: string;
   ownerId: string;
   dueDate: string;
+  dueTime: string;
+  reminder: ReminderChoice;
+  reminderChannel: ReminderChannelChoice;
   priority: PriorityKey;
   status: WorkspaceStatus;
 };
+
+type ReminderChoice = 'none' | '0' | '10' | '15' | '30' | '60' | '1440';
+type ReminderChannelChoice = 'in_app' | 'email' | 'both';
+const TASK_TIME_ZONE_FALLBACK = 'Europe/Istanbul';
 
 const TASK_QUERY_DEFAULTS = { status: 'active', page: '1', size: '10', sort: 'due', dir: 'asc' };
 const TASK_PAGE_SIZES = [10, 25, 50] as const;
@@ -103,6 +112,9 @@ const EMPTY_FORM: TaskForm = {
   agreementId: '',
   ownerId: '',
   dueDate: '',
+  dueTime: '',
+  reminder: '10',
+  reminderChannel: 'in_app',
   priority: 'medium',
   status: 'open',
 };
@@ -133,43 +145,87 @@ function priorityKey(value: string | null | undefined): PriorityKey {
   return 'medium';
 }
 
-function formatDate(value: string | null | undefined, locale: string): string {
+function formatDate(value: string | null | undefined, locale: string, timeZone = TASK_TIME_ZONE_FALLBACK): string {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
   return new Intl.DateTimeFormat(locale === 'tr' ? 'tr-TR' : 'en-GB', {
+    timeZone,
     day: 'numeric',
     month: 'short',
     year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   }).format(date);
 }
 
-function dueTone(item: CrmActivitySummary): 'overdue' | 'today' | 'done' | 'neutral' {
+function zonedParts(value: Date, timeZone: string): { date: string; time: string } {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(value);
+  const read = (type: string) => parts.find((part) => part.type === type)?.value || '';
+  return { date: `${read('year')}-${read('month')}-${read('day')}`, time: `${read('hour')}:${read('minute')}` };
+}
+
+function zonedDateTimeToUtc(date: string, clock: string, timeZone: string): Date {
+  const [year, month, day] = date.split('-').map(Number);
+  const [hour, minute] = clock.split(':').map(Number);
+  const guess = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
+  const shown = zonedParts(guess, timeZone);
+  const [shownYear, shownMonth, shownDay] = shown.date.split('-').map(Number);
+  const [shownHour, shownMinute] = shown.time.split(':').map(Number);
+  const intended = Date.UTC(year, month - 1, day, hour, minute, 0);
+  const actual = Date.UTC(shownYear, shownMonth - 1, shownDay, shownHour, shownMinute, 0);
+  return new Date(guess.getTime() - (actual - intended));
+}
+
+function reminderRows(form: TaskForm, timeZone: string): Array<{ channel: 'in_app' | 'email'; remind_at: string; offset_minutes: number }> {
+  if (form.reminder === 'none' || !form.dueDate || !form.dueTime) return [];
+  const due = zonedDateTimeToUtc(form.dueDate, form.dueTime, timeZone);
+  const remindAt = new Date(due.getTime() - Number(form.reminder) * 60_000).toISOString();
+  const channels: Array<'in_app' | 'email'> = form.reminderChannel === 'both' ? ['in_app', 'email'] : [form.reminderChannel];
+  return channels.map((channel) => ({
+    channel,
+    remind_at: remindAt,
+    offset_minutes: Number(form.reminder),
+  }));
+}
+
+function reminderChoiceFromDetail(detail: CrmActivityDetail): { reminder: ReminderChoice; reminderChannel: ReminderChannelChoice } {
+  const rows = detail.reminders || [];
+  const active = rows.filter((row) => !row.is_sent);
+  const source = active.length ? active : rows;
+  if (!source.length) return { reminder: 'none', reminderChannel: 'in_app' };
+  const offset = source[0]?.offset_minutes;
+  const reminder: ReminderChoice =
+    offset === 0 || offset === 10 || offset === 15 || offset === 30 || offset === 60 || offset === 1440 ? String(offset) as ReminderChoice : '0';
+  const channels = new Set(source.map((row) => row.channel));
+  const reminderChannel: ReminderChannelChoice =
+    channels.has('email') && (channels.has('in_app') || channels.has('notification'))
+      ? 'both'
+      : channels.has('email')
+        ? 'email'
+        : 'in_app';
+  return { reminder, reminderChannel };
+}
+
+function dueTone(item: CrmActivitySummary, timeZone = TASK_TIME_ZONE_FALLBACK): 'overdue' | 'today' | 'done' | 'neutral' {
   const status = workspaceStatus(item);
   if (status === 'completed' || status === 'cancelled') return 'done';
   if (!item.due_date) return 'neutral';
   const due = new Date(item.due_date);
   if (Number.isNaN(due.getTime())) return 'neutral';
-  const today = new Date();
-  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-  const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate()).getTime();
-  if (dueDay < start) return 'overdue';
-  if (dueDay === start) return 'today';
+  const dueDay = zonedParts(due, timeZone).date;
+  const today = zonedParts(new Date(), timeZone).date;
+  if (dueDay < today) return 'overdue';
+  if (dueDay === today) return 'today';
   return 'neutral';
-}
-
-function toDuePayload(date: string): string | undefined {
-  if (!date) return undefined;
-  return `${date}T12:00:00+03:00`;
-}
-
-function dateInputValue(value: string | null | undefined): string {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value.slice(0, 10);
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${date.getFullYear()}-${month}-${day}`;
 }
 
 function statusToApi(status: WorkspaceStatus): { task_status: CrmTaskStatus; status: 'planned' | 'in_progress' | 'completed' | 'cancelled' } {
@@ -233,9 +289,12 @@ function TaskDrawer({
   saving,
   completing,
   formError,
+  timeZone,
   onClose,
   onEdit,
   onComplete,
+  onReschedule,
+  startFinish = false,
   onSave,
   onFormChange,
   onPersonQuery,
@@ -253,9 +312,12 @@ function TaskDrawer({
   saving: boolean;
   completing: boolean;
   formError: string | null;
+  timeZone: string;
   onClose: () => void;
   onEdit: () => void;
-  onComplete: () => void;
+  onComplete: (outcome: string) => void;
+  onReschedule: (due: string) => void;
+  startFinish?: boolean;
   onSave: () => void;
   onFormChange: (patch: Partial<TaskForm>) => void;
   onPersonQuery: (value: string) => void;
@@ -281,13 +343,20 @@ function TaskDrawer({
   const owner = displayOwner(item?.assigned_user_name || item?.owner_name);
   const description = previewText(item?.summary) || t('drawer.noDescription');
   const status = item ? workspaceStatus(item) : form.status;
+  const [finishOpen, setFinishOpen] = useState(false);
+  const [finishNote, setFinishNote] = useState('');
+  const [postponeOpen, setPostponeOpen] = useState(false);
+  const [postponeAt, setPostponeAt] = useState('');
+  useEffect(() => {
+    if (startFinish) setFinishOpen(true);
+  }, [startFinish, item?.id]);
 
   return (
     <aside className="crm-ops-drawer" role="dialog" aria-label={t('drawer.title')} data-testid="crm-tasks-drawer">
       <div className="crm-ops-drawer__head">
         <h3>{mode === 'create' ? t('create') : mode === 'edit' ? t('actions.edit') : t('drawer.title')}</h3>
-        <button type="button" className="crm-ops-link" onClick={onClose}>
-          {t('actions.close')}
+        <button type="button" className="crm-ops-link" aria-label={t('actions.close')} data-testid="task-drawer-close" onClick={onClose}>
+          ×
         </button>
       </div>
       <div className="crm-ops-drawer__body">
@@ -300,9 +369,9 @@ function TaskDrawer({
               <dt>{t('drawer.priority')}</dt>
               <dd>{t(`priority.${priorityKey(item.priority)}`)}</dd>
               <dt>{t('table.start')}</dt>
-              <dd>{formatDate(item.start_date, locale)}</dd>
+              <dd>{formatDate(item.start_date, locale, timeZone)}</dd>
               <dt>{t('table.end')}</dt>
-              <dd>{formatDate(item.due_date, locale)}</dd>
+              <dd>{formatDate(item.due_date, locale, timeZone)}</dd>
               <dt>{t('drawer.owner')}</dt>
               <dd>{owner || '—'}</dd>
               <dt>{t('drawer.person')}</dt>
@@ -310,11 +379,11 @@ function TaskDrawer({
               <dt>{t('drawer.project')}</dt>
               <dd>{project.title || '—'}</dd>
               <dt>{t('drawer.created')}</dt>
-              <dd>{formatDate(item.created_at, locale)}</dd>
+              <dd>{formatDate(item.created_at, locale, timeZone)}</dd>
               {item.updated_at ? (
                 <>
                   <dt>{t('drawer.updated')}</dt>
-                  <dd>{formatDate(item.updated_at, locale)}</dd>
+                  <dd>{formatDate(item.updated_at, locale, timeZone)}</dd>
                 </>
               ) : null}
             </dl>
@@ -331,8 +400,13 @@ function TaskDrawer({
                 </Button>
               ) : null}
               {canManage && status !== 'completed' ? (
-                <Button type="button" size="sm" onClick={onComplete} disabled={completing}>
+                <Button type="button" size="sm" data-testid="task-complete-open" onClick={() => setFinishOpen(true)} disabled={completing}>
                   {t('actions.complete')}
+                </Button>
+              ) : null}
+              {canManage && status !== 'completed' ? (
+                <Button type="button" size="sm" variant="secondary" data-testid="task-postpone-open" onClick={() => setPostponeOpen(true)}>
+                  Ertele
                 </Button>
               ) : null}
               {canManage ? (
@@ -341,6 +415,39 @@ function TaskDrawer({
                 </Button>
               ) : null}
             </div>
+            {finishOpen ? (
+              <form
+                className="crm-ops-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  onComplete(finishNote.trim());
+                  setFinishOpen(false);
+                }}
+              >
+                <TextArea label="Sonuç / Görüşme Notu" value={finishNote} onChange={(event) => setFinishNote(event.target.value)} />
+                <div className="crm-ops-drawer__actions">
+                  <Button type="submit" size="sm" disabled={completing}>Kaydet</Button>
+                  <Button type="button" size="sm" variant="secondary" onClick={() => setFinishOpen(false)}>Vazgeç</Button>
+                </div>
+              </form>
+            ) : null}
+            {postponeOpen ? (
+              <form
+                className="crm-ops-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (!postponeAt) return;
+                  onReschedule(postponeAt);
+                  setPostponeOpen(false);
+                }}
+              >
+                <Input label="Yeni tarih" type="datetime-local" value={postponeAt} onChange={(event) => setPostponeAt(event.target.value)} />
+                <div className="crm-ops-drawer__actions">
+                  <Button type="submit" size="sm">Kaydet</Button>
+                  <Button type="button" size="sm" variant="secondary" onClick={() => setPostponeOpen(false)}>Vazgeç</Button>
+                </div>
+              </form>
+            ) : null}
           </>
         ) : (
           <form
@@ -423,6 +530,36 @@ function TaskDrawer({
               value={form.dueDate}
               onChange={(event) => onFormChange({ dueDate: event.target.value })}
             />
+            <Input
+              label={t('form.dueTime')}
+              type="time"
+              value={form.dueTime}
+              onChange={(event) => onFormChange({ dueTime: event.target.value })}
+            />
+            <Select
+              label={t('form.reminder')}
+              value={form.reminder}
+              onChange={(event) => onFormChange({ reminder: event.target.value as ReminderChoice })}
+            >
+              <option value="none">{t('form.reminderNone')}</option>
+              <option value="0">{t('form.reminderOnTime')}</option>
+              <option value="10">{t('form.reminder10')}</option>
+              <option value="15">{t('form.reminder15')}</option>
+              <option value="30">{t('form.reminder30')}</option>
+              <option value="60">{t('form.reminder60')}</option>
+              <option value="1440">{t('form.reminderDay')}</option>
+            </Select>
+            {form.reminder !== 'none' ? (
+              <Select
+                label={t('form.reminderChannel')}
+                value={form.reminderChannel}
+                onChange={(event) => onFormChange({ reminderChannel: event.target.value as ReminderChannelChoice })}
+              >
+                <option value="in_app">{t('form.channelInApp')}</option>
+                <option value="email">{t('form.channelEmail')}</option>
+                <option value="both">{t('form.channelBoth')}</option>
+              </Select>
+            ) : null}
             <Select
               label={t('form.priority')}
               value={form.priority}
@@ -454,6 +591,9 @@ function TaskDrawer({
               <Button type="submit" size="sm" disabled={saving || !form.title.trim()}>
                 {saving ? t('form.saving') : t('form.save')}
               </Button>
+              <Button type="button" size="sm" variant="secondary" data-testid="task-form-cancel" onClick={onClose}>
+                Vazgeç
+              </Button>
             </div>
           </form>
         )}
@@ -467,6 +607,8 @@ export function CrmTasksWorkspace() {
   const tCommon = useTranslations('common');
   const locale = useLocale();
   const { authLoading, canRead: canView, canManageTasks } = useCrmAccess();
+  const { user } = useAuth();
+  const timeZone = user?.timezone || TASK_TIME_ZONE_FALLBACK;
   const { openContact } = useContactCard();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
@@ -489,6 +631,7 @@ export function CrmTasksWorkspace() {
   );
   const [personDraft, setPersonDraft] = useState(filters.person);
   const pendingPerson = useRef<string | null>(null);
+  const reminderHydrated = useRef<string | null>(null);
   const page = Math.max(1, Number(searchParams.get('page') || '1') || 1);
   const sizeParam = Number(searchParams.get('size'));
   const pageSize = TASK_PAGE_SIZES.includes(sizeParam as (typeof TASK_PAGE_SIZES)[number])
@@ -503,6 +646,7 @@ export function CrmTasksWorkspace() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedSnapshot, setSelectedSnapshot] = useState<CrmActivitySummary | null>(null);
   const [mode, setMode] = useState<'detail' | 'create' | 'edit' | null>(null);
+  const [promptComplete, setPromptComplete] = useState(false);
   const [form, setForm] = useState<TaskForm>(EMPTY_FORM);
   const [formBaseline, setFormBaseline] = useState<TaskForm>(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
@@ -576,7 +720,7 @@ export function CrmTasksWorkspace() {
   const detailQuery = useQuery({
     queryKey: activityQueryKeys.detail(selectedId || ''),
     queryFn: () => fetchActivity(selectedId || ''),
-    enabled: Boolean(selectedId) && mode === 'detail',
+    enabled: Boolean(selectedId) && (mode === 'detail' || mode === 'edit'),
   });
   const selectedDetail = selected
     ? {
@@ -618,44 +762,64 @@ export function CrmTasksWorkspace() {
   };
 
   const completeMutation = useMutation({
-    mutationFn: completeTask,
+    mutationFn: (input: { id: string; outcome?: string }) => completeTask(input.id, input.outcome),
     onSuccess: invalidate,
   });
+  const rescheduleMutation = useMutation({
+    mutationFn: (input: { id: string; due: string }) => rescheduleTask(input.id, input.due),
+    onSuccess: invalidate,
+  });
+  const saveState = useRef({ form, formBaseline, mode, selectedId, timeZone });
+  saveState.current = { form, formBaseline, mode, selectedId, timeZone };
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const mapped = statusToApi(form.status);
-      if (mode === 'edit' && selectedId) {
-        await updateActivity(selectedId, {
-          title: form.title.trim(),
-          description: form.description.trim() || undefined,
-          assigned_user_id: form.ownerId || undefined,
-          due_date: toDuePayload(form.dueDate),
-          priority: form.priority,
+      const current = saveState.current;
+      const mapped = statusToApi(current.form.status);
+      if (current.form.reminder !== 'none' && (!current.form.dueDate || !current.form.dueTime)) {
+        throw new Error('reminder_requires_due');
+      }
+      const due = current.form.dueDate && current.form.dueTime
+        ? { due_on: current.form.dueDate, due_time: current.form.dueTime, timezone: current.timeZone }
+        : {};
+      const reminders = reminderRows(current.form, current.timeZone);
+      const remindersKnown = current.mode !== 'edit'
+        || reminderHydrated.current === current.selectedId
+        || current.form.reminder !== current.formBaseline.reminder
+        || current.form.reminderChannel !== current.formBaseline.reminderChannel;
+      if (current.mode === 'edit' && current.selectedId) {
+        await updateActivity(current.selectedId, {
+          title: current.form.title.trim(),
+          description: current.form.description.trim() || undefined,
+          assigned_user_id: current.form.ownerId || undefined,
+          ...due,
+          priority: current.form.priority,
           task_status: mapped.task_status,
           status: mapped.status,
-          entity_type: form.contactId ? 'contact' : undefined,
-          entity_id: form.contactId || undefined,
-          related_entity_type: form.agreementId ? 'transaction' : undefined,
-          related_entity_id: form.agreementId || undefined,
+          entity_type: current.form.contactId ? 'contact' : undefined,
+          entity_id: current.form.contactId || undefined,
+          related_entity_type: current.form.agreementId ? 'transaction' : undefined,
+          related_entity_id: current.form.agreementId || undefined,
+          ...(remindersKnown ? { reminders } : {}),
           metadata_json: {
             task_links: {
-              contact_id: form.contactId || null,
-              project_group: form.projectGroup || null,
-              agreement_id: form.agreementId || null,
+              contact_id: current.form.contactId || null,
+              project_group: current.form.projectGroup || null,
+              agreement_id: current.form.agreementId || null,
             },
           },
         });
         return;
       }
       await createTask({
-        title: form.title.trim(),
-        description: form.description.trim() || undefined,
-        contact_id: form.contactId || undefined,
-        project_group: form.projectGroup || undefined,
-        agreement_id: form.agreementId || undefined,
-        assigned_user_id: form.ownerId || undefined,
-        due_date: toDuePayload(form.dueDate),
-        priority: form.priority,
+        title: current.form.title.trim(),
+        description: current.form.description.trim() || undefined,
+        contact_id: current.form.contactId || undefined,
+        project_group: current.form.projectGroup || undefined,
+        agreement_id: current.form.agreementId || undefined,
+        assigned_user_id: current.form.ownerId || undefined,
+        ...due,
+        reminders,
+        priority: current.form.priority,
         task_status: mapped.task_status,
       });
     },
@@ -668,7 +832,11 @@ export function CrmTasksWorkspace() {
       setFormBaseline(EMPTY_FORM);
       invalidate();
     },
-    onError: () => {
+    onError: (error) => {
+      if (error instanceof Error && error.message === 'reminder_requires_due') {
+        setFormError(locale.startsWith('tr') ? 'Hatırlatma için son tarih ve saat gerekli.' : 'A reminder needs a due date and time.');
+        return;
+      }
       setFormError(saveFailedMessage(locale.startsWith('tr')));
     },
   });
@@ -718,6 +886,30 @@ export function CrmTasksWorkspace() {
     patch({ sort: key, dir: nextDir, page: null });
   };
 
+  useEffect(() => {
+    if (mode !== 'edit' || !selectedId || detailQuery.data?.id !== selectedId) return;
+    if (reminderHydrated.current === selectedId) return;
+    reminderHydrated.current = selectedId;
+    const dueParts = detailQuery.data.due_date
+      ? zonedParts(new Date(detailQuery.data.due_date), timeZone)
+      : { date: '', time: '' };
+    const reminder = reminderChoiceFromDetail(detailQuery.data);
+    const next = {
+      dueDate: dueParts.date,
+      dueTime: detailQuery.data.due_date ? dueParts.time : '',
+      ...reminder,
+    };
+    setForm((current) => ({ ...current, ...next }));
+    setFormBaseline((current) => ({ ...current, ...next }));
+  }, [detailQuery.data, mode, selectedId, timeZone]);
+
+  useEffect(() => {
+    const taskId = searchParams.get('task');
+    if (!taskId || selectedId === taskId) return;
+    setSelectedId(taskId);
+    setMode('detail');
+  }, [searchParams, selectedId]);
+
   const openCreate = () => {
     setForm(EMPTY_FORM);
     setFormBaseline(EMPTY_FORM);
@@ -738,6 +930,8 @@ export function CrmTasksWorkspace() {
     setMenuId(null);
     setSelectedSnapshot(item);
     setSelectedId(item.id);
+    reminderHydrated.current = null;
+    const dueParts = item.due_date ? zonedParts(new Date(item.due_date), timeZone) : { date: '', time: '' };
     setForm({
       title: item.title,
       description: item.summary || '',
@@ -746,7 +940,10 @@ export function CrmTasksWorkspace() {
       projectGroup: item.project_group || '',
       agreementId: item.agreement_id || '',
       ownerId: item.assigned_user_id || item.owner_id || '',
-      dueDate: dateInputValue(item.due_date),
+      dueDate: dueParts.date,
+      dueTime: item.due_date ? dueParts.time : '',
+      reminder: 'none',
+      reminderChannel: 'in_app',
       priority: priorityKey(item.priority),
       status: workspaceStatus(item),
     });
@@ -758,7 +955,10 @@ export function CrmTasksWorkspace() {
       projectGroup: item.project_group || '',
       agreementId: item.agreement_id || '',
       ownerId: item.assigned_user_id || item.owner_id || '',
-      dueDate: dateInputValue(item.due_date),
+      dueDate: dueParts.date,
+      dueTime: item.due_date ? dueParts.time : '',
+      reminder: 'none',
+      reminderChannel: 'in_app',
       priority: priorityKey(item.priority),
       status: workspaceStatus(item),
     });
@@ -1002,7 +1202,7 @@ export function CrmTasksWorkspace() {
               <tbody>
                 {items.map((item) => {
                   const status = workspaceStatus(item);
-                  const tone = dueTone(item);
+                  const tone = dueTone(item, timeZone);
                   const person = personLabel(item, t('unresolvedIdentity'));
                   const project = projectDisplay(item);
                   const owner = displayOwner(item.assigned_user_name || item.owner_name);
@@ -1078,10 +1278,10 @@ export function CrmTasksWorkspace() {
                         )}
                       </td>
                       <td className="is-date">
-                        <span className="crm-ops-date">{formatDate(item.start_date, locale)}</span>
+                        <span className="crm-ops-date">{formatDate(item.start_date, locale, timeZone)}</span>
                       </td>
                       <td className="is-date">
-                        <span className={`crm-ops-date is-${tone}`}>{formatDate(item.due_date, locale)}</span>
+                        <span className={`crm-ops-date is-${tone}`}>{formatDate(item.due_date, locale, timeZone)}</span>
                       </td>
                       <td>
                         <span className={`crm-ops-badge is-${priority === 'medium' ? 'normal' : priority}`}>
@@ -1142,7 +1342,9 @@ export function CrmTasksWorkspace() {
                                     onClick={(event) => {
                                       event.stopPropagation();
                                       setMenuId(null);
-                                      completeMutation.mutate(item.id);
+                                      setPromptComplete(true);
+                                      setSelectedId(item.id);
+                                      setMode('detail');
                                     }}
                                   >
                                     {t('actions.complete')}
@@ -1231,9 +1433,12 @@ export function CrmTasksWorkspace() {
             saving={saveMutation.isPending}
             completing={completeMutation.isPending}
             formError={formError}
+            timeZone={timeZone}
             onClose={requestClose}
             onEdit={() => selected && openEdit(selected)}
-            onComplete={() => selected && completeMutation.mutate(selected.id)}
+            onComplete={(outcome) => selected && completeMutation.mutate({ id: selected.id, outcome })}
+            onReschedule={(due) => selected && rescheduleMutation.mutate({ id: selected.id, due })}
+            startFinish={promptComplete}
             onSave={() => void saveMutation.mutate()}
             onFormChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
             onPersonQuery={(value) => setForm((prev) => ({ ...prev, contactLabel: value, contactId: '' }))}

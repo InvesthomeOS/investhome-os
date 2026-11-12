@@ -23,6 +23,7 @@ from investhome_api.models.finance import (
 )
 from investhome_api.models.project import Project
 from investhome_api.models.project_budget import (
+    BudgetAudience,
     BudgetVersionStatus,
     ProjectBudgetLine,
     ProjectBudgetVersion,
@@ -158,6 +159,7 @@ def _normalized_budget_total(db: Session, project_id: UUID) -> Decimal | None:
     version = db.scalars(
         select(ProjectBudgetVersion).where(
             ProjectBudgetVersion.project_id == project_id,
+            ProjectBudgetVersion.audience == BudgetAudience.INTERNAL,
             ProjectBudgetVersion.is_current.is_(True),
             ProjectBudgetVersion.status == BudgetVersionStatus.APPROVED,
         )

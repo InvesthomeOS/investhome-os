@@ -61,3 +61,17 @@ class NotificationSummaryResponse(BaseModel):
 
 class NotificationMarkReadResponse(BaseModel):
     updated: int
+
+
+class NotificationPreferenceItem(BaseModel):
+    event_key: str
+    in_app: bool
+    email: bool
+
+
+class NotificationPreferenceListResponse(BaseModel):
+    items: list[NotificationPreferenceItem]
+
+
+class NotificationPreferenceUpdate(BaseModel):
+    items: list[NotificationPreferenceItem]

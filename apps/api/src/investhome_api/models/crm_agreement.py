@@ -59,6 +59,16 @@ class CrmAgreement(Base):
         ForeignKey("projects.id", ondelete="SET NULL"),
         nullable=True,
     )
+    phase_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("project_phases.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    inventory_asset_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("inventory_assets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     project_group: Mapped[str] = mapped_column(String(40), nullable=False)
     source: Mapped[str] = mapped_column(String(80), nullable=False, default="bitrix")
     source_external_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
@@ -73,6 +83,16 @@ class CrmAgreement(Base):
     review_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     hemen_kira: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     metadata_json: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancellation_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    cancellation_note: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    cancelled_by: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    pipeline_return_stage: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    pipeline_returned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -107,6 +127,10 @@ class CrmAgreementParticipant(Base):
     )
     role: Mapped[str] = mapped_column(String(40), nullable=False, default="owner")
     ownership_pct: Mapped[Decimal | None] = mapped_column(Numeric(7, 2), nullable=True)
+    commission_rate: Mapped[Decimal | None] = mapped_column(Numeric(7, 4), nullable=True)
+    commission_amount: Mapped[Decimal | None] = mapped_column(Numeric(16, 2), nullable=True)
+    commission_paid: Mapped[Decimal | None] = mapped_column(Numeric(16, 2), nullable=True)
+    commission_condition: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_primary: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     source: Mapped[str] = mapped_column(String(80), nullable=False, default="bitrix_live")
     metadata_json: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)

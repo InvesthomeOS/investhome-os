@@ -25,6 +25,14 @@ from investhome_api.models.crm_contact import (
     CrmContactType,
     CrmRecordKind,
 )
+from investhome_api.models.document import (
+    ConfidentialityLevel,
+    Document,
+    DocumentLink,
+    DocumentType,
+    DocumentVisibility,
+    StorageProvider,
+)
 from investhome_api.models.user_auth import User, UserStatus
 from investhome_api.services.crm.gmail_client import GmailApiError
 from investhome_api.services.crm.gmail_sync import sync_gmail_account
@@ -715,3 +723,218 @@ def test_reply_all_prefers_reply_to(
     assert "copy@example.com" in (mime["Cc"] or "")
     assert "sales.box@investhome.com.tr" not in (mime["To"] or "")
     assert "sales.box@investhome.com.tr" not in (mime["Cc"] or "")
+
+
+def _pdf_bytes() -> bytes:
+    return b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n"
+
+
+def _stored_pdf(db: Session, contact: CrmContact, *, linked: bool = True) -> Document:
+    from investhome_api.services.document_validation import content_stream
+    from investhome_api.services.storage import get_storage_provider
+
+    content = _pdf_bytes()
+    storage_key = f"email-tests/{uuid4().hex}.pdf"
+    get_storage_provider().save(storage_key, content_stream(content), content_length=len(content))
+    document = Document(
+        title="teklif.pdf",
+        original_file_name="teklif.pdf",
+        stored_file_name=storage_key.rsplit("/", 1)[-1],
+        file_extension="pdf",
+        mime_type="application/pdf",
+        file_size=len(content),
+        storage_provider=StorageProvider.LOCAL,
+        storage_key=storage_key,
+        checksum=uuid4().hex,
+        document_type=DocumentType.PDF,
+        visibility=DocumentVisibility.ORGANIZATION,
+        confidentiality_level=ConfidentialityLevel.INTERNAL,
+    )
+    db.add(document)
+    db.flush()
+    if linked:
+        db.add(DocumentLink(document_id=document.id, entity_type="crm_contact", entity_id=contact.id))
+    db.commit()
+    db.refresh(document)
+    return document
+
+
+def _attachment_parts(raw: str) -> list[tuple[str, bytes]]:
+    mime = _decode(raw)
+    found: list[tuple[str, bytes]] = []
+    for part in mime.walk():
+        filename = part.get_filename()
+        if not filename:
+            continue
+        payload = part.get_payload(decode=True)
+        found.append((filename, payload if isinstance(payload, bytes) else b""))
+    return found
+
+
+def test_computer_upload_is_a_real_mime_attachment_and_not_a_document(
+    auth_client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _login(auth_client, "sales@example.com")
+    sales = _user(db, "sales@example.com")
+    _account(db, sales, "sales.box@investhome.com.tr")
+    contact = _contact(db, "ada@example.com")
+    before = db.scalar(select(func.count()).select_from(Document)) or 0
+    _patch_mailbox(monkeypatch, RecordingMailbox)
+    content = _pdf_bytes()
+    response = _send(
+        auth_client,
+        {
+            "mode": "new",
+            "contact_id": str(contact.id),
+            "to": ["ada@example.com"],
+            "subject": "Teklif",
+            "body_text": "PDF ektedir",
+            "uploads": [
+                {
+                    "filename": "teklif.pdf",
+                    "content_base64": base64.b64encode(content).decode("ascii"),
+                }
+            ],
+        },
+    )
+    assert response.status_code == 200, response.text
+    raw = str(RecordingMailbox.calls[0]["raw"])
+    padded = raw + "=" * (-len(raw) % 4)
+    mime_text = base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8", "replace")
+    assert "multipart/mixed" in mime_text
+    assert "Content-Disposition: attachment" in mime_text
+    assert 'filename="teklif.pdf"' in mime_text
+    assert "Content-Type: application/pdf" in mime_text
+    parts = _attachment_parts(raw)
+    assert parts == [("teklif.pdf", content)]
+    after = db.scalar(select(func.count()).select_from(Document)) or 0
+    assert after == before
+    db.expire_all()
+    row = db.scalar(select(CrmCommunication).where(CrmCommunication.external_provider_id == "gm-sent-1"))
+    assert row is not None
+    stored = (row.metadata_json or {}).get("attachments")
+    assert stored == [{"filename": "teklif.pdf", "size": len(content), "document_id": None}]
+
+
+def test_unsafe_upload_names_the_file_and_does_not_send(
+    auth_client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _login(auth_client, "sales@example.com")
+    sales = _user(db, "sales@example.com")
+    _account(db, sales, "sales.box@investhome.com.tr")
+    contact = _contact(db, "ada@example.com")
+    _patch_mailbox(monkeypatch, RecordingMailbox)
+    response = _send(
+        auth_client,
+        {
+            "mode": "new",
+            "contact_id": str(contact.id),
+            "to": ["ada@example.com"],
+            "subject": "Teklif",
+            "body_text": "Ektedir",
+            "uploads": [
+                {
+                    "filename": "sozlesme.pdf",
+                    "content_base64": base64.b64encode(b"<html><body>not a pdf</body></html>").decode("ascii"),
+                }
+            ],
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "attachment_failed:sozlesme.pdf:blocked_type"
+    assert RecordingMailbox.calls == []
+    assert (
+        db.scalar(select(func.count()).select_from(CrmCommunication).where(CrmCommunication.subject == "Teklif"))
+        == 0
+    )
+
+
+def test_linked_document_is_attached_without_copying_storage(
+    auth_client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _login(auth_client, "sales@example.com")
+    sales = _user(db, "sales@example.com")
+    _account(db, sales, "sales.box@investhome.com.tr")
+    contact = _contact(db, "ada@example.com")
+    document = _stored_pdf(db, contact)
+    storage_key = document.storage_key
+    before = db.scalar(select(func.count()).select_from(Document)) or 0
+    _patch_mailbox(monkeypatch, RecordingMailbox)
+    response = _send(
+        auth_client,
+        {
+            "mode": "new",
+            "contact_id": str(contact.id),
+            "to": ["ada@example.com"],
+            "subject": "Teklif",
+            "body_text": "Kayitli belge",
+            "document_ids": [str(document.id)],
+        },
+    )
+    assert response.status_code == 200, response.text
+    names = [name for name, _payload in _attachment_parts(str(RecordingMailbox.calls[0]["raw"]))]
+    assert names == ["teklif.pdf"]
+    db.expire_all()
+    assert db.scalar(select(func.count()).select_from(Document)) == before
+    stored = db.get(Document, document.id)
+    assert stored is not None
+    assert stored.storage_key == storage_key
+
+
+def test_unlinked_document_is_rejected_before_send(
+    auth_client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _login(auth_client, "sales@example.com")
+    sales = _user(db, "sales@example.com")
+    _account(db, sales, "sales.box@investhome.com.tr")
+    contact = _contact(db, "ada@example.com")
+    other = _contact(db, "other@example.com", name="Other")
+    document = _stored_pdf(db, other)
+    _patch_mailbox(monkeypatch, RecordingMailbox)
+    response = _send(
+        auth_client,
+        {
+            "mode": "new",
+            "contact_id": str(contact.id),
+            "to": ["ada@example.com"],
+            "subject": "Teklif",
+            "body_text": "Yanlis belge",
+            "document_ids": [str(document.id)],
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "attachment_failed:teklif.pdf:not_linked"
+    assert RecordingMailbox.calls == []
+
+
+def test_attachment_total_blocks_send(
+    auth_client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _login(auth_client, "sales@example.com")
+    sales = _user(db, "sales@example.com")
+    _account(db, sales, "sales.box@investhome.com.tr")
+    contact = _contact(db, "ada@example.com")
+    monkeypatch.setattr(
+        "investhome_api.services.crm.gmail_send.EMAIL_ATTACHMENT_MAX_TOTAL_BYTES",
+        8,
+    )
+    _patch_mailbox(monkeypatch, RecordingMailbox)
+    response = _send(
+        auth_client,
+        {
+            "mode": "new",
+            "contact_id": str(contact.id),
+            "to": ["ada@example.com"],
+            "subject": "Teklif",
+            "body_text": "Cok buyuk",
+            "uploads": [
+                {
+                    "filename": "teklif.pdf",
+                    "content_base64": base64.b64encode(_pdf_bytes()).decode("ascii"),
+                }
+            ],
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "attachment_too_large"
+    assert RecordingMailbox.calls == []

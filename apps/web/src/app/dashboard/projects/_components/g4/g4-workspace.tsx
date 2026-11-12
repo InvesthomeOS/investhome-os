@@ -23,6 +23,7 @@ import {
   type ProjectStats,
   type ProjectStatus,
 } from '@/lib/api/projects';
+import { saveProjectPhases, type PhaseDraft } from '@/lib/api/project-phases';
 import { useRecordDeepLink } from '@/lib/hooks/use-record-deep-link';
 import { useProjectLabels } from '@/lib/i18n/project-labels';
 
@@ -442,15 +443,17 @@ export function ProjectsG4Workspace() {
     }
   };
 
-  const handleSubmit = async (input: ProjectInput) => {
+  const handleSubmit = async (input: ProjectInput, phases: PhaseDraft[]) => {
     setSubmitting(true);
     setActionError(null);
     try {
       if (formMode === 'create') {
-        await createProject(input);
+        const created = await createProject(input);
+        if (phases.length) await saveProjectPhases(created.id, phases);
         setToast(tG4('created'));
       } else if (formMode === 'edit' && selectedProject) {
         const updated = await updateProject(selectedProject.id, input);
+        await saveProjectPhases(updated.id, phases);
         setSelectedProject(updated);
         setToast(tG4('updated'));
       }

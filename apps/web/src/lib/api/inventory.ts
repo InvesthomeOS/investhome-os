@@ -160,6 +160,7 @@ export interface Floor {
 export interface InventoryAsset {
   id: string;
   project_id: string;
+  phase_id?: string | null;
   building_id: string | null;
   floor_id: string | null;
   display_id: string;
@@ -243,6 +244,7 @@ export interface FloorFilters {
 
 export interface InventoryAssetFilters {
   project_id?: string;
+  phase_id?: string;
   building_id?: string;
   floor_id?: string;
   asset_type?: InventoryAssetType | '';
@@ -264,6 +266,7 @@ export interface InventoryAssetFilters {
 
 export interface InventoryAssetInput {
   project_id: string;
+  phase_id?: string | null;
   building_id?: string | null;
   floor_id?: string | null;
   display_id: string;
@@ -371,6 +374,7 @@ function buildQuery(params: Record<string, string | number | boolean | undefined
 function assetFilterQuery(filters: InventoryAssetFilters = {}): string {
   return buildQuery({
     project_id: filters.project_id,
+    phase_id: filters.phase_id,
     building_id: filters.building_id,
     floor_id: filters.floor_id,
     asset_type: filters.asset_type,

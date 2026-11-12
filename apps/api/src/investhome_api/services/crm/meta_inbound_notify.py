@@ -24,6 +24,7 @@ from investhome_api.db import session as db_session
 from investhome_api.models.crm_communication import CrmCommunication
 from investhome_api.models.crm_contact import CrmContact
 from investhome_api.models.lead import Lead
+from investhome_api.models.notification import NotificationPriority, NotificationSource, NotificationType
 from investhome_api.models.user_auth import Role, User, UserRole, UserStatus
 from investhome_api.services.notification_gateway import (
     GatewayMessage,
@@ -541,6 +542,93 @@ def _skip(communication_id: UUID, reason: str) -> str:
     return "skipped"
 
 
+def _inbound_event_key(comm: CrmCommunication) -> str:
+    return "instagram_message" if comm.channel == "instagram" else "facebook_message"
+
+
+def _in_app_user_ids(db: Session, comm: CrmCommunication) -> list[UUID]:
+    ids: list[UUID] = []
+    seen: set[UUID] = set()
+
+    def add(user: User | None) -> None:
+        if user is None or user.archived_at is not None or user.status != UserStatus.ACTIVE:
+            return
+        if user.id in seen:
+            return
+        seen.add(user.id)
+        ids.append(user.id)
+
+    for user in _active_sales_users(db):
+        add(user)
+    contact = db.get(CrmContact, comm.contact_id) if comm.contact_id else None
+    if contact is not None and contact.archived_at is None:
+        if contact.owner_user_id is not None:
+            add(db.get(User, contact.owner_user_id))
+        lead = db.get(Lead, contact.lead_id) if contact.lead_id else None
+        if lead is not None and lead.archived_at is None and lead.assigned_manager_id is not None:
+            add(db.get(User, lead.assigned_manager_id))
+    return ids
+
+
+def _dispatch_inbound_in_app(db: Session, comm: CrmCommunication) -> None:
+    from investhome_api.services.user_notifications import DispatchRequest, dispatch_user_event
+
+    event_key = _inbound_event_key(comm)
+    contact = db.get(CrmContact, comm.contact_id) if comm.contact_id else None
+    name = _display_name(comm, contact) or ("Instagram" if event_key == "instagram_message" else "Facebook")
+    title_key = (
+        "notifications.crm.instagram_message.title"
+        if event_key == "instagram_message"
+        else "notifications.crm.facebook_message.title"
+    )
+    message_key = (
+        "notifications.crm.instagram_message.message"
+        if event_key == "instagram_message"
+        else "notifications.crm.facebook_message.message"
+    )
+    if comm.contact_id is not None:
+        module = "crm/contacts"
+        query = {"contact": str(comm.contact_id)}
+        if contact is not None and contact.lead_id is not None:
+            query["lead"] = str(contact.lead_id)
+        destination = "/workspaces/crm/contacts?" + "&".join(f"{key}={value}" for key, value in query.items())
+    else:
+        module = "crm/communication"
+        query = {"communication": str(comm.id)}
+        destination = f"/workspaces/crm/communication?communication={comm.id}"
+    for user_id in _in_app_user_ids(db, comm):
+        dispatch_user_event(
+            db,
+            DispatchRequest(
+                event_key=event_key,
+                recipient_user_id=user_id,
+                title_key=title_key,
+                message_key=message_key,
+                rule_key=f"crm.meta.inbound.{comm.id}",
+                related_entity_type="crm_communication",
+                related_entity_id=comm.id,
+                link_module=module,
+                link_query=query,
+                destination_path=destination,
+                notification_type=NotificationType.SYSTEM,
+                priority=NotificationPriority.MEDIUM,
+                source=NotificationSource.INTEGRATION,
+                allow_email=False,
+                metadata={"name": name, "title": name, "related_label": name},
+            ),
+        )
+
+
+def _user_wants_inbound_email(db: Session, comm: CrmCommunication, user_key: str) -> bool:
+    from investhome_api.services.user_notifications import email_enabled
+
+    try:
+        user_id = UUID(user_key)
+    except ValueError:
+        return False
+    return email_enabled(db, user_id, _inbound_event_key(comm))
+
+
 def deliver_meta_inbound_email(
     communication_id: UUID,
     *,
@@ -554,11 +642,13 @@ def deliver_meta_inbound_email(
     lock_key = f"{LOCK_PREFIX}{communication_id}"
     claimed = False
     try:
-        if not get_settings().crm_inbound_email_notifications_enabled:
-            return _skip(communication_id, "disabled")
         comm = session.get(CrmCommunication, communication_id)
         if comm is None:
             return _skip(communication_id, "missing")
+        if _eligible(comm):
+            _dispatch_inbound_in_app(session, comm)
+        if not get_settings().crm_inbound_email_notifications_enabled:
+            return _skip(communication_id, "disabled")
         if _notification_status(_meta(comm)) == "sent":
             return _skip(communication_id, "already_sent")
         if not _eligible(comm):
@@ -591,6 +681,14 @@ def deliver_meta_inbound_email(
         expected = {item.key for item in recipients}
         failures = 0
         for recipient in pending:
+            if recipient.key != FALLBACK_RECIPIENT_KEY and not _user_wants_inbound_email(session, comm, recipient.key):
+                _record_recipient_sent(session, comm, recipient, expected)
+                logger.info(
+                    "meta_inbound_email_skipped communication_id=%s reason=preference source=%s",
+                    communication_id,
+                    recipient.source,
+                )
+                continue
             message = _build_message(comm, recipient=recipient.email, name=name, project=project)
             try:
                 result = get_notification_gateway().dispatch(message, provider_id="email_smtp")

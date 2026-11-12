@@ -93,6 +93,9 @@ class Settings(BaseSettings):
         default=True,
         alias="DOCUMENT_MALWARE_SCAN_FAIL_CLOSED",
     )
+    web_push_vapid_public_key: str | None = Field(default=None, alias="WEB_PUSH_VAPID_PUBLIC_KEY")
+    web_push_vapid_private_key: str | None = Field(default=None, alias="WEB_PUSH_VAPID_PRIVATE_KEY")
+    web_push_vapid_subject: str | None = Field(default=None, alias="WEB_PUSH_VAPID_SUBJECT")
 
     # Google Drive (Creative Studio asset scanner) — never hardcode secrets
     google_drive_client_id: str | None = Field(default=None, alias="GOOGLE_DRIVE_CLIENT_ID")

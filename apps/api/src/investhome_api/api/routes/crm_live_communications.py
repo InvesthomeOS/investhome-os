@@ -365,6 +365,9 @@ def send_customer_email_route(
             subject=payload.subject,
             body_text=payload.body_text,
             body_html=payload.body_html,
+            document_ids=payload.document_ids,
+            uploads=[item.model_dump() for item in payload.uploads],
+            agreement_id=payload.agreement_id,
         )
         db.commit()
         db.refresh(comm)

@@ -1,11 +1,12 @@
 'use client';
 
-import { useMemo } from 'react';
-import { useTranslations } from 'next-intl';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { Button, FilterBar, SearchInput, Select } from '@investhome/ui';
 
 import type { Building, Floor, InventoryAssetFilters } from '@/lib/api/inventory';
+import { fetchProjectPhases, type ProjectPhaseRecord } from '@/lib/api/project-phases';
 import type { Project } from '@/lib/api/projects';
 import { useInventoryLabels } from '@/lib/i18n/inventory-labels';
 
@@ -43,6 +44,8 @@ export function InventoryFilters({
   onReset,
 }: InventoryFiltersProps) {
   const t = useTranslations('inventory');
+  const locale = useLocale();
+  const [phases, setPhases] = useState<ProjectPhaseRecord[]>([]);
   const {
     assetTypeOptions,
     availabilityOptions,
@@ -109,6 +112,10 @@ export function InventoryFilters({
       const project = projects.find((p) => p.id === filters.project_id);
       if (project) chips.push({ key: 'project_id', label: project.project_name });
     }
+    if (filters.phase_id) {
+      const phase = phases.find((item) => item.id === filters.phase_id);
+      if (phase) chips.push({ key: 'phase_id', label: phase.name });
+    }
     if (filters.building_id) {
       const building = buildings.find((b) => b.id === filters.building_id);
       if (building) chips.push({ key: 'building_id', label: building.code });
@@ -138,13 +145,34 @@ export function InventoryFilters({
     if (filters.leasing_status) chips.push({ key: 'leasing_status', label: filters.leasing_status });
     if (filters.include_archived) chips.push({ key: 'include_archived', label: t('filters.archived') });
     return chips;
-  }, [filters, projects, buildings, floors, t]);
+  }, [filters, projects, buildings, floors, phases, t]);
+
+  useEffect(() => {
+    if (!filters.project_id) {
+      setPhases([]);
+      return;
+    }
+    let cancelled = false;
+    void fetchProjectPhases(filters.project_id)
+      .then((items) => {
+        if (!cancelled) setPhases(items);
+      })
+      .catch(() => {
+        if (!cancelled) setPhases([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [filters.project_id]);
 
   const clearChip = (key: string) => {
     const next = { ...filters };
     if (key === 'search') next.search = '';
     else if (key === 'include_archived') next.include_archived = false;
-    else if (key === 'project_id') next.project_id = '';
+    else if (key === 'project_id') {
+      next.project_id = '';
+      next.phase_id = '';
+    } else if (key === 'phase_id') next.phase_id = '';
     else if (key === 'building_id') next.building_id = '';
     else if (key === 'floor_id') next.floor_id = '';
     else if (key === 'asset_type') next.asset_type = '';
@@ -199,12 +227,26 @@ export function InventoryFilters({
             label={t('filters.project')}
             value={filters.project_id ?? ''}
             onChange={(event) =>
-              onChange({ ...filters, project_id: event.target.value, building_id: '', floor_id: '' })
+              onChange({ ...filters, project_id: event.target.value, phase_id: '', building_id: '', floor_id: '' })
             }
           >
             {renderOptions(projectOptions)}
           </Select>
         )}
+        {showProject && filters.project_id && phases.length ? (
+          <Select
+            label={locale === 'tr' ? 'Faz' : 'Phase'}
+            value={filters.phase_id ?? ''}
+            onChange={(event) => onChange({ ...filters, phase_id: event.target.value })}
+          >
+            <option value="">{locale === 'tr' ? 'Tüm fazlar' : 'All phases'}</option>
+            {phases.map((phase) => (
+              <option key={phase.id} value={phase.id}>
+                {phase.name}
+              </option>
+            ))}
+          </Select>
+        ) : null}
         {showBuilding && (
           <Select
             label={t('filters.building')}

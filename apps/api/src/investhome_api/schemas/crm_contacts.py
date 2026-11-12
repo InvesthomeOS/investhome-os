@@ -220,6 +220,8 @@ class CrmPurchaseSummary(BaseModel):
     project_group: str
     project_label: str
     unit_number: str | None = None
+    phase_name: str | None = None
+    unit_display: str | None = None
     amount: str | None = None
     currency: str | None = None
     amount_label: str | None = None
@@ -259,6 +261,8 @@ class CrmContactAgreementVerification(BaseModel):
     status: str
     agreement_date: date | None = None
     unit_number: str | None = None
+    phase_name: str | None = None
+    unit_display: str | None = None
     investment_amount: str | None = None
     payment_amount: str | None = None
     deposit: str | None = None

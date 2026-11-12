@@ -72,6 +72,7 @@ def test_uf_file_ids_are_deal_explicit() -> None:
 
 
 def test_money_format() -> None:
-    assert format_money("470000.00", "USD") == "$470,000 USD"
-    assert format_money("800250.00", "USD") == "$800,250 USD"
-    assert format_money(str(Decimal("330757.00")), "USD") == "$330,757 USD"
+    assert format_money("470000.00", "USD") == "$470,000"
+    assert format_money("800250.00", "USD") == "$800,250"
+    assert format_money(str(Decimal("330757.00")), "USD") == "$330,757"
+    assert format_money("500000", "USD") == "$500,000"

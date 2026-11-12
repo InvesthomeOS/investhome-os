@@ -52,6 +52,7 @@ import {
 import { ApiError } from '@/lib/api/client';
 import { hasPermission } from '@/lib/api/auth';
 import { fetchProjects, type Project } from '@/lib/api/projects';
+import { fetchProjectPhases } from '@/lib/api/project-phases';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useRecordDeepLink } from '@/lib/hooks/use-record-deep-link';
 import { useInventoryLabels } from '@/lib/i18n/inventory-labels';
@@ -76,6 +77,7 @@ const EMPTY_FILTERS: InventoryFilterState = {
   nav_view: 'all',
   search: '',
   project_id: '',
+  phase_id: '',
   building_id: '',
   floor_id: '',
   asset_type: '',
@@ -175,6 +177,8 @@ export function InventoryWorkspace() {
   const [ownershipSummaries, setOwnershipSummaries] = useState<Map<string, OwnershipSummary>>(new Map());
   const [projects, setProjects] = useState<Project[]>([]);
   const [buildings, setBuildings] = useState<Building[]>([]);
+  const [phaseNames, setPhaseNames] = useState<Map<string, string>>(new Map());
+  const [multiPhaseProjects, setMultiPhaseProjects] = useState<Set<string>>(new Set());
   const [floors, setFloors] = useState<Floor[]>([]);
   const [formBuildings, setFormBuildings] = useState<Building[]>([]);
   const [formFloors, setFormFloors] = useState<Floor[]>([]);
@@ -306,6 +310,24 @@ export function InventoryWorkspace() {
         setAssets(response.items);
         setTotal(response.total);
         setPages(response.pages);
+        const projectIds = [...new Set(response.items.map((asset) => asset.project_id))];
+        const loadedPhases = await Promise.all(
+          projectIds.map(async (projectId) => {
+            try {
+              return [projectId, await fetchProjectPhases(projectId)] as const;
+            } catch {
+              return [projectId, []] as const;
+            }
+          }),
+        );
+        const names = new Map<string, string>();
+        const multi = new Set<string>();
+        for (const [projectId, phases] of loadedPhases) {
+          if (phases.length > 1) multi.add(projectId);
+          for (const phase of phases) names.set(phase.id, phase.name);
+        }
+        setPhaseNames(names);
+        setMultiPhaseProjects(multi);
         try {
           const reservations = await fetchReservations({
             project_id: apiFilters.project_id,
@@ -644,7 +666,11 @@ export function InventoryWorkspace() {
                           {assetTypeIcon(asset)}
                         </span>
                       </td>
-                      <td>{asset.display_id}</td>
+                      <td data-testid="inventory-unit-label">
+                        {asset.phase_id && phaseNames.get(asset.phase_id) && multiPhaseProjects.has(asset.project_id)
+                          ? `${phaseNames.get(asset.phase_id)} · ${asset.display_id}`
+                          : asset.display_id}
+                      </td>
                       <td>{asset.system_code}</td>
                       <td>{asset.legal_identifier ?? '—'}</td>
                       <td>{getAssetTypeLabel(asset.asset_type)}</td>
@@ -738,6 +764,11 @@ export function InventoryWorkspace() {
 
       <InventoryDetailDrawer
         asset={selectedAsset}
+        unitLabel={
+          selectedAsset?.phase_id && phaseNames.get(selectedAsset.phase_id) && multiPhaseProjects.has(selectedAsset.project_id)
+            ? `${phaseNames.get(selectedAsset.phase_id)} · ${selectedAsset.display_id}`
+            : selectedAsset?.display_id
+        }
         projects={projects}
         buildings={buildings}
         floors={floors}

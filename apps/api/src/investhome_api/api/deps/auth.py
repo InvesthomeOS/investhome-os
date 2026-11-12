@@ -37,46 +37,42 @@ def extract_token(
     return None
 
 
-def _maybe_refresh_session_cookie(
-    response: Response,
+def _pending_session_refresh(
     db: Session,
     user: User,
     token: str,
     jti: str | None,
-) -> None:
-    """Extend an already-valid session cookie. Never issues a new login or exceeds absolute lifetime."""
+    auth_session,
+) -> tuple[str, datetime] | None:
+    """Stage a sliding cookie from data already loaded. Must not query the database."""
     if not jti:
-        return
+        return None
     remaining = seconds_until_token_expiry(token)
     if remaining is None:
-        return
+        return None
     from investhome_api.services.session_lifetime import (
         compute_access_expiry,
         idle_timeout,
         session_started_at,
     )
 
-    auth_session = session_service.get_active_session(db, jti)
-    if auth_session is None:
-        return
     started = session_started_at(auth_session)
     capped_expiry = compute_access_expiry(started_at=started)
     if capped_expiry is None:
-        return
+        return None
     idle_seconds = idle_timeout().total_seconds()
     until_cap = (capped_expiry - datetime.now(UTC)).total_seconds()
     if remaining > idle_seconds * 0.5 and remaining <= until_cap + 1:
-        return
+        return None
     new_token, expires_at, _issued_jti = create_access_token(
         user.id,
         jti=jti,
         auth_time=started,
     )
     if expires_at <= datetime.now(UTC):
-        return
-    session_service.extend_session_expiry(auth_session.id, expires_at)
-    auth_session.expires_at = expires_at
-    set_session_cookie(response, new_token, expires_at)
+        return None
+    session_service.extend_session_expiry(db, auth_session, expires_at)
+    return new_token, expires_at
 
 
 def get_current_user(
@@ -118,31 +114,44 @@ def get_current_user(
             detail="Invalid or expired session",
         )
 
-    auth_session = session_service.get_active_session(db, jti)
-    if auth_session is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session has been terminated",
-        )
-    # Short-lived SessionLocal + throttle — never write on the request session
-    session_service.touch_session(db, auth_session)
+    refreshed: tuple[str, datetime] | None = None
+    committed = False
+    try:
+        auth_session = session_service.get_active_session(db, jti)
+        if auth_session is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session has been terminated",
+            )
+        user = load_user_with_roles(db, user_id)
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated",
+            )
 
-    user = load_user_with_roles(db, user_id)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+        if user.status not in {UserStatus.ACTIVE}:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account is not active",
+            )
 
-    if user.status not in {UserStatus.ACTIVE}:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is not active",
-        )
+        # Attach jti for logout / current-session detection (not persisted on User model)
+        object.__setattr__(user, "_session_jti", jti)
+        # Role reads are finished. The auth_sessions row lock starts at touch and
+        # ends at the commit below; refresh only mutates the loaded session.
+        session_service.touch_session(db, auth_session)
+        refreshed = _pending_session_refresh(db, user, token, jti, auth_session)
+        committed = session_service.commit_auth_transaction(db)
+    except HTTPException:
+        session_service.abort_auth_transaction(db)
+        raise
+    except Exception:
+        session_service.abort_auth_transaction(db)
+        raise
 
-    # Attach jti for logout / current-session detection (not persisted on User model)
-    object.__setattr__(user, "_session_jti", jti)
-    _maybe_refresh_session_cookie(response, db, user, token, jti)
+    if committed and refreshed is not None:
+        set_session_cookie(response, refreshed[0], refreshed[1])
     return user
 
 def _dev_bypass_user(db: Session) -> User:
@@ -187,11 +196,18 @@ def require_permission(resource: str, action: str):
         settings = get_settings()
         if not settings.auth_enabled:
             return user
-        if not user_has_permission(user, resource, action, db=db):
+        try:
+            allowed = user_has_permission(user, resource, action, db=db)
+        except Exception:
+            session_service.abort_auth_transaction(db)
+            raise
+        if not allowed:
+            session_service.abort_auth_transaction(db)
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions",
             )
+        session_service.release_read_transaction(db)
         return user
 
     return _dependency
@@ -207,12 +223,21 @@ def require_any_permission(*permissions: tuple[str, str]):
         settings = get_settings()
         if not settings.auth_enabled:
             return user
-        if any(user_has_permission(user, resource, action, db=db) for resource, action in permissions):
-            return user
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions",
-        )
+        try:
+            allowed = any(
+                user_has_permission(user, resource, action, db=db) for resource, action in permissions
+            )
+        except Exception:
+            session_service.abort_auth_transaction(db)
+            raise
+        if not allowed:
+            session_service.abort_auth_transaction(db)
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions",
+            )
+        session_service.release_read_transaction(db)
+        return user
 
     return _dependency
 

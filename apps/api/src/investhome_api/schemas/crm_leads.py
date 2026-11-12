@@ -47,6 +47,13 @@ class CrmLeadActivityItem(BaseModel):
     metadata: dict[str, Any] | None = None
 
 
+class CrmLeadNoteItem(BaseModel):
+    id: str
+    body: str
+    author_name: str | None = None
+    created_at: datetime
+
+
 class CrmLeadTaskItem(BaseModel):
     id: UUID
     title: str
@@ -69,6 +76,12 @@ class CrmLeadItem(BaseModel):
     ad_id: str | None = None
     form_id: str | None = None
     project: str | None = None
+    project_id: UUID | None = None
+    phase_id: UUID | None = None
+    phase_name: str | None = None
+    inventory_asset_id: UUID | None = None
+    unit_number: str | None = None
+    interest_label: str | None = None
     owner_user_id: UUID | None = None
     owner_name: str | None = None
     stage: CrmLeadStage
@@ -94,6 +107,7 @@ class CrmLeadDetail(CrmLeadItem):
     metadata: dict[str, Any] | None = None
     activity: list[CrmLeadActivityItem] = Field(default_factory=list)
     tasks: list[CrmLeadTaskItem] = Field(default_factory=list)
+    note_entries: list[CrmLeadNoteItem] = Field(default_factory=list)
 
 
 class CrmLeadKpis(BaseModel):
@@ -163,13 +177,27 @@ class CrmLeadBoardCardsResponse(BaseModel):
 
 class CrmLeadWrite(BaseModel):
     full_name: str | None = Field(default=None, max_length=255)
+    first_name: str | None = Field(default=None, max_length=120)
+    last_name: str | None = Field(default=None, max_length=120)
     phone: str | None = Field(default=None, max_length=50)
     email: str | None = Field(default=None, max_length=255)
+    contact_id: UUID | None = None
+    address_line1: str | None = Field(default=None, max_length=255)
+    city: str | None = Field(default=None, max_length=120)
+    state_province: str | None = Field(default=None, max_length=120)
+    country: str | None = Field(default=None, max_length=100)
+    language: str | None = Field(default=None, max_length=20)
+    organization_name: str | None = Field(default=None, max_length=255)
+    job_title: str | None = Field(default=None, max_length=120)
+    next_follow_up_at: datetime | None = None
     source: str | None = Field(default=None, max_length=100)
     campaign: str | None = Field(default=None, max_length=255)
     ad_id: str | None = Field(default=None, max_length=120)
     form_id: str | None = Field(default=None, max_length=120)
     project: str | None = Field(default=None, max_length=255)
+    project_id: UUID | None = None
+    phase_id: UUID | None = None
+    inventory_asset_id: UUID | None = None
     owner_user_id: UUID | None = None
     notes: str | None = Field(default=None, max_length=5000)
     stage: CrmLeadStage | None = None

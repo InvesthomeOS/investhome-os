@@ -5,6 +5,7 @@ import type { CrmContactSummary } from '@/workspaces/crm/types';
 import {
   agentFlags,
   displayDate,
+  displayAgentStage,
   kanbanColumns,
   normalizeAgentStage,
   responsibleOf,
@@ -29,7 +30,7 @@ export function AgentsKanban({
         return (
           <section key={column} className="crm-agreements-column" data-testid={`agents-column-${column}`}>
             <h2>
-              {column}
+              {displayAgentStage(column)}
               <span>{cards.length}</span>
             </h2>
             {cards.map((agent) => {

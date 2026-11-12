@@ -10,6 +10,7 @@ import { WorkspaceHeaderUser } from '@/components/shell/workspace-header-user';
 import { locales, type AppLocale } from '@/i18n/config';
 import { useAuth } from '@/lib/auth/auth-context';
 import { writeLocaleCookie } from '@/lib/i18n/locale-cookie';
+import { useNotifications } from '@/lib/notifications/notification-context';
 import { useGlobalSearch } from '@/lib/search/global-search-context';
 
 import {
@@ -30,6 +31,9 @@ type ScreenshotDashboardHeaderCoreProps = {
   changeLocale: (locale: AppLocale) => void;
   /** Production uses WorkspaceHeaderUser; preview keeps a static chrome stub. */
   profile: ReactNode;
+  showNotifications: boolean;
+  unreadCount: number;
+  onOpenNotifications: () => void;
 };
 
 function ScreenshotDashboardHeaderCore({
@@ -39,9 +43,11 @@ function ScreenshotDashboardHeaderCore({
   isPending,
   changeLocale,
   profile,
+  showNotifications,
+  unreadCount,
+  onOpenNotifications,
 }: ScreenshotDashboardHeaderCoreProps) {
-  const { openAi, openQuickAction, openNotifications, unreadCount } =
-    useScreenshotDashboardInteractions();
+  const { openAi, openQuickAction } = useScreenshotDashboardInteractions();
   const t = useTranslations('screenshotDashboard');
   const { density, setDensity, currency, setCurrency } = useScreenshotDashboardPreferences();
   const [quickMenuOpen, setQuickMenuOpen] = useState(false);
@@ -199,17 +205,19 @@ function ScreenshotDashboardHeaderCore({
           ) : null}
         </div>
 
-        <button
-          type="button"
-          className="screenshot-header__notification"
-          aria-label={t('header.notifications')}
-          onClick={openNotifications}
-        >
-          <IhIcon name="bell" size={17} />
-          <span className="screenshot-header__badge" aria-label={t('header.unreadCount', { count: unreadCount })}>
-            {unreadCount}
-          </span>
-        </button>
+        {showNotifications ? (
+          <button
+            type="button"
+            className="screenshot-header__notification"
+            aria-label={t('header.unreadCount', { count: unreadCount })}
+            onClick={onOpenNotifications}
+          >
+            <IhIcon name="bell" size={17} />
+            {unreadCount > 0 ? (
+              <span className="screenshot-header__badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+            ) : null}
+          </button>
+        ) : null}
         <span className="screenshot-header__divider" aria-hidden="true" />
         {profile}
       </div>
@@ -233,6 +241,7 @@ function ScreenshotDashboardPreviewProfile() {
 
 export function ScreenshotDashboardHeader() {
   const { canSearch, openPalette } = useGlobalSearch();
+  const { canView, unreadCount, openDrawer } = useNotifications();
   const locale = useLocale() as AppLocale;
   const router = useRouter();
   const { setPreferredLocale } = useAuth();
@@ -259,6 +268,9 @@ export function ScreenshotDashboardHeader() {
       isPending={isPending}
       changeLocale={changeLocale}
       profile={<WorkspaceHeaderUser variant="screenshot" />}
+      showNotifications={canView}
+      unreadCount={unreadCount}
+      onOpenNotifications={openDrawer}
     />
   );
 }
@@ -279,6 +291,9 @@ export function ScreenshotDashboardPreviewHeader() {
       isPending={false}
       changeLocale={setLocale}
       profile={<ScreenshotDashboardPreviewProfile />}
+      showNotifications={false}
+      unreadCount={0}
+      onOpenNotifications={() => undefined}
     />
   );
 }

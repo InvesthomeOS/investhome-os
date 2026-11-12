@@ -24,6 +24,11 @@ body {
   line-height: 1.5;
 }
 
+html.ih-scroll-lock,
+html.ih-scroll-lock body {
+  overflow: hidden;
+}
+
 :focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
@@ -3653,6 +3658,133 @@ body {
   background: #3498db;
 }
 
+.notification-toast-stack {
+  position: fixed;
+  top: 4.5rem;
+  right: 1rem;
+  z-index: 1400;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: min(20rem, calc(100vw - 2rem));
+  pointer-events: none;
+}
+
+.notification-toast {
+  position: relative;
+  pointer-events: auto;
+  text-align: left;
+  background: var(--surface);
+  color: inherit;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-drawer);
+  padding: 0.7rem 2rem 0.7rem 0.85rem;
+}
+
+.notification-toast strong,
+.notification-toast p,
+.notification-toast span {
+  display: block;
+}
+
+.notification-toast p,
+.notification-toast span {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.notification-toast__close,
+.notification-toast__open {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.notification-toast__close {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.4rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.notification-toast__open {
+  margin-top: 0.45rem;
+  min-height: 28px;
+  padding: 0 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.75rem;
+}
+
+.os-overflow {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.os-overflow__trigger {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.os-overflow__trigger:hover,
+.os-overflow__trigger:focus-visible {
+  background: rgba(7, 91, 117, 0.08);
+  outline: none;
+}
+
+.os-overflow__menu {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 180px;
+  padding: 4px;
+  border: 1px solid var(--border, #d7e2e6);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: var(--shadow-drawer, 0 8px 24px rgba(7, 91, 117, 0.12));
+}
+
+.os-overflow__item {
+  display: flex;
+  width: 100%;
+  min-height: 32px;
+  align-items: center;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.os-overflow__item.is-destructive {
+  color: #9a3412;
+}
+
+.os-overflow__divider {
+  height: 1px;
+  margin: 4px 6px;
+  border: 0;
+  background: #e4ecef;
+}
+
 .notification-drawer {
   position: fixed;
   inset: 0;
@@ -3664,12 +3796,21 @@ body {
   position: absolute;
   top: 0;
   right: 0;
+  display: flex;
+  flex-direction: column;
   width: min(28rem, 100vw);
   height: 100%;
-  overflow-y: auto;
+  max-height: 100dvh;
+  overflow: hidden;
   background: var(--surface);
   border-left: 1px solid var(--border);
   box-shadow: var(--shadow-drawer);
+}
+
+.notification-drawer__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
   padding: var(--space-7);
 }
 
@@ -3726,7 +3867,7 @@ body {
 .notification-item__link,
 .notification-item__body {
   display: block;
-  padding: 0.875rem 1rem;
+  padding: 0.7rem 0.85rem 0.35rem;
   text-decoration: none;
   color: inherit;
 }
@@ -3777,25 +3918,36 @@ body {
 }
 
 .notification-item__related {
-  display: inline-block;
-  margin-top: 0.5rem;
+  display: block;
+  margin-top: 0.35rem;
   font-size: 0.8125rem;
-  color: var(--muted);
+  color: var(--text);
 }
 
 .notification-item__actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  padding: 0 1rem 0.875rem;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem 0.7rem;
 }
 
 .notification-item__actions button,
-.notification-item__open {
-  border: none;
-  background: transparent;
-  color: var(--accent);
-  font-size: 0.8125rem;
+.notification-item__open,
+.notification-drawer__toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.75rem;
+  line-height: 1;
   cursor: pointer;
   text-decoration: none;
 }

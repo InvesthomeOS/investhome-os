@@ -416,6 +416,11 @@
 }
 
 /* Sticky tabs */
+.proj-detail-ds__phase-filter {
+  max-width: 280px;
+  margin-bottom: 8px;
+}
+
 .proj-detail-ds__tabs-bar {
   position: sticky;
   top: var(--header-height, 3.75rem);

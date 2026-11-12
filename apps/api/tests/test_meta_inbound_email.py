@@ -124,6 +124,17 @@ def _user(db: Session, email: str, status: UserStatus) -> User:
     db.add(user)
     db.commit()
     db.refresh(user)
+    from investhome_api.services.user_notifications import save_preference_state
+
+    save_preference_state(
+        db,
+        user.id,
+        [
+            {"event_key": "instagram_message", "in_app": True, "email": True},
+            {"event_key": "facebook_message", "in_app": True, "email": True},
+        ],
+    )
+    db.commit()
     return user
 
 

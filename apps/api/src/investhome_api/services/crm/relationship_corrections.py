@@ -327,18 +327,43 @@ def change_agreement_unit(
     unit_number: str,
     *,
     actor: User | None,
+    phase_id: UUID | None = None,
+    inventory_asset_id: UUID | None = None,
 ) -> str:
-    """Replace the current unit on the same agreement. Contact and history stay."""
+    """Replace the current unit on this agreement only.
+
+    The stored value is the business identifier. Phase stays on phase_id.
+    Other agreements, including historical unit text, are not rewritten.
+    """
+    from investhome_api.services.crm.unit_link import assert_unit_open_for_sale, resolve_agreement_unit
+
     agreement = _agreement_or_error(db, agreement_id)
     if agreement.project_group == "reit":
         raise RelationshipCorrectionError("unit_not_applicable")
-    cleaned = " ".join(str(unit_number or "").split())
-    if not cleaned or len(cleaned) > 40:
+    try:
+        cleaned, linked_phase_id, linked_asset_id = resolve_agreement_unit(
+            db,
+            project_id=agreement.project_id,
+            unit_number=unit_number,
+            phase_id=phase_id,
+            inventory_asset_id=inventory_asset_id,
+        )
+    except ValueError as exc:
+        raise RelationshipCorrectionError("invalid_unit") from exc
+    try:
+        assert_unit_open_for_sale(db, linked_asset_id, ignore_agreement_id=agreement.id)
+    except ValueError as exc:
+        raise RelationshipCorrectionError("unit_already_committed") from exc
+    if not cleaned or len(cleaned) > 80:
         raise RelationshipCorrectionError("invalid_unit")
     previous = agreement.unit_number
-    if normalize_unit(previous) == normalize_unit(cleaned):
+    same_unit = normalize_unit(previous) == normalize_unit(cleaned)
+    same_link = agreement.phase_id == linked_phase_id and agreement.inventory_asset_id == linked_asset_id
+    if same_unit and same_link:
         return "unchanged"
     agreement.unit_number = cleaned
+    agreement.phase_id = linked_phase_id
+    agreement.inventory_asset_id = linked_asset_id
     meta = dict(agreement.metadata_json) if isinstance(agreement.metadata_json, dict) else {}
     fields = meta.get("agreement_fields")
     if isinstance(fields, dict):

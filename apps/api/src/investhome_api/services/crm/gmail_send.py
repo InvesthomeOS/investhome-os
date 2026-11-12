@@ -6,6 +6,7 @@ SMTP is not used. A message is written to CRM only after Gmail accepts the send.
 from __future__ import annotations
 
 import base64
+import binascii
 import logging
 from datetime import UTC, datetime
 from email.message import EmailMessage
@@ -13,8 +14,9 @@ from email.utils import formatdate, make_msgid
 from typing import Any
 from uuid import UUID
 
+from fastapi import HTTPException
 from sqlalchemy import or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from investhome_api.models.crm_communication import (
     CrmCommunication,
@@ -23,6 +25,7 @@ from investhome_api.models.crm_communication import (
     CrmUserCommunicationAccountStatus,
 )
 from investhome_api.models.crm_contact import CrmContact
+from investhome_api.models.document import Document
 from investhome_api.models.lead import Lead
 from investhome_api.models.user_auth import User
 from investhome_api.services.crm.gmail_client import GmailApiError, GoogleGmailMailbox
@@ -39,8 +42,33 @@ from investhome_api.services.crm.identity import (
 )
 from investhome_api.services.crm.live_ingest import ingest_live_message
 from investhome_api.services.crm_communication_activity import record_communication_audit
+from investhome_api.services.document_service import user_can_download_document
+from investhome_api.services.document_validation import validate_upload_content
+from investhome_api.services.storage import get_storage_provider
 
 logger = logging.getLogger(__name__)
+
+# Gmail rejects messages above 25 MB. 18 MiB of raw attachments leaves room for
+# base64 expansion plus headers and body.
+EMAIL_ATTACHMENT_MAX_TOTAL_BYTES = 18 * 1024 * 1024
+EMAIL_ATTACHMENT_MAX_COUNT = 10
+_ATTACHMENT_REASONS = frozenset(
+    {
+        "blocked_type",
+        "unknown_type",
+        "content_mismatch",
+        "unsupported_type",
+        "mime_mismatch",
+        "file_too_large",
+        "empty_file",
+        "not_linked",
+        "not_permitted",
+        "missing",
+        "unreadable",
+        "empty",
+        "invalid",
+    }
+)
 
 _SENDABLE_STATUSES = frozenset(
     {
@@ -51,6 +79,20 @@ _SENDABLE_STATUSES = frozenset(
 )
 
 
+def _safe_attachment_label(name: str) -> str:
+    cleaned = "".join(
+        ch if ch.isprintable() and ch not in {":", "\n", "\r"} else "_" for ch in (name or "dosya")
+    )
+    return (cleaned.strip() or "dosya")[:180]
+
+
+def _attachment_reason(detail: object) -> str:
+    text = detail if isinstance(detail, str) else ""
+    if text.startswith("documents.errors."):
+        text = text.rsplit(".", 1)[-1]
+    return text if text in _ATTACHMENT_REASONS else "unreadable"
+
+
 class GmailCustomerEmailError(Exception):
     def __init__(
         self,
@@ -58,11 +100,20 @@ class GmailCustomerEmailError(Exception):
         status_code: int = 400,
         *,
         persist_account_state: bool = False,
+        filename: str | None = None,
+        reason: str | None = None,
     ) -> None:
         super().__init__(code)
         self.code = code
         self.status_code = status_code
-        self.public_detail = code
+        self.filename = filename
+        self.reason = _attachment_reason(reason) if reason else None
+        if code == "attachment_failed" and filename:
+            self.public_detail = (
+                f"attachment_failed:{_safe_attachment_label(filename)}:{self.reason or 'unreadable'}"
+            )
+        else:
+            self.public_detail = code
         self.persist_account_state = persist_account_state
 
 
@@ -347,6 +398,164 @@ def _subset(requested: list[str], allowed: list[str]) -> list[str]:
     return chosen
 
 
+def _document_in_email_scope(
+    document: Document,
+    *,
+    contact_id: UUID | None,
+    lead_id: UUID | None,
+    agreement_id: UUID | None,
+) -> bool:
+    allowed: set[tuple[str, UUID]] = set()
+    if contact_id is not None:
+        allowed.add(("crm_contact", contact_id))
+        allowed.add(("contact", contact_id))
+    if lead_id is not None:
+        allowed.add(("lead", lead_id))
+        if document.lead_id == lead_id:
+            return True
+    if agreement_id is not None:
+        allowed.add(("crm_agreement", agreement_id))
+        allowed.add(("agreement", agreement_id))
+    if not allowed:
+        return False
+    return any((link.entity_type, link.entity_id) in allowed for link in document.links)
+
+
+def _read_linked_document(
+    db: Session,
+    user: User,
+    document_id: UUID,
+    *,
+    contact_id: UUID | None,
+    lead_id: UUID | None,
+    agreement_id: UUID | None,
+) -> tuple[str, str, bytes, str | None]:
+    document = db.scalar(
+        select(Document)
+        .where(Document.id == document_id)
+        .options(selectinload(Document.links))
+    )
+    label = document.original_file_name if document is not None else "belge"
+    if document is None or document.archived_at is not None:
+        raise GmailCustomerEmailError("attachment_failed", 400, filename=label, reason="missing")
+    if not user_can_download_document(user, document):
+        raise GmailCustomerEmailError("attachment_failed", 400, filename=label, reason="not_permitted")
+    if not _document_in_email_scope(
+        document,
+        contact_id=contact_id,
+        lead_id=lead_id,
+        agreement_id=agreement_id,
+    ):
+        raise GmailCustomerEmailError("attachment_failed", 400, filename=label, reason="not_linked")
+    try:
+        stream = get_storage_provider().open(document.storage_key)
+        try:
+            content = stream.read()
+        finally:
+            stream.close()
+    except Exception as exc:
+        logger.warning("email_attachment_unreadable document=%s", document.id)
+        raise GmailCustomerEmailError(
+            "attachment_failed",
+            400,
+            filename=label,
+            reason="unreadable",
+        ) from exc
+    if not content:
+        raise GmailCustomerEmailError("attachment_failed", 400, filename=label, reason="empty")
+    return label, document.mime_type or "application/octet-stream", content, str(document.id)
+
+
+def _read_uploaded_attachment(item: dict[str, Any]) -> tuple[str, str, bytes, None]:
+    filename = _safe_attachment_label(str(item.get("filename") or "dosya"))
+    encoded = str(item.get("content_base64") or "")
+    try:
+        content = base64.b64decode(encoded, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise GmailCustomerEmailError(
+            "attachment_failed",
+            400,
+            filename=filename,
+            reason="invalid",
+        ) from exc
+    try:
+        validated, _ext, mime_type, original_name, _size = validate_upload_content(
+            content,
+            filename=str(item.get("filename") or filename),
+            declared_mime=None,
+        )
+    except HTTPException as exc:
+        raise GmailCustomerEmailError(
+            "attachment_failed",
+            400,
+            filename=filename,
+            reason=_attachment_reason(exc.detail),
+        ) from exc
+    return original_name, mime_type, validated, None
+
+
+def resolve_email_attachments(
+    db: Session,
+    user: User,
+    *,
+    document_ids: list[UUID] | None,
+    uploads: list[dict[str, Any]] | None,
+    contact_id: UUID | None,
+    lead_id: UUID | None,
+    agreement_id: UUID | None,
+) -> list[dict[str, Any]]:
+    """Read attachment bytes before SMTP. Computer uploads are not stored as documents."""
+    ids: list[UUID] = []
+    seen: set[UUID] = set()
+    for document_id in document_ids or []:
+        if document_id in seen:
+            continue
+        seen.add(document_id)
+        ids.append(document_id)
+    incoming = list(uploads or [])
+    if len(ids) + len(incoming) > EMAIL_ATTACHMENT_MAX_COUNT:
+        raise GmailCustomerEmailError("attachment_too_many", 400)
+
+    prepared: list[dict[str, Any]] = []
+    total = 0
+    for document_id in ids:
+        filename, mime_type, content, stored_id = _read_linked_document(
+            db,
+            user,
+            document_id,
+            contact_id=contact_id,
+            lead_id=lead_id,
+            agreement_id=agreement_id,
+        )
+        total += len(content)
+        if total > EMAIL_ATTACHMENT_MAX_TOTAL_BYTES:
+            raise GmailCustomerEmailError("attachment_too_large", 400)
+        prepared.append(
+            {
+                "filename": filename,
+                "mime_type": mime_type,
+                "content": content,
+                "document_id": stored_id,
+                "size": len(content),
+            }
+        )
+    for item in incoming:
+        filename, mime_type, content, _stored_id = _read_uploaded_attachment(item)
+        total += len(content)
+        if total > EMAIL_ATTACHMENT_MAX_TOTAL_BYTES:
+            raise GmailCustomerEmailError("attachment_too_large", 400)
+        prepared.append(
+            {
+                "filename": filename,
+                "mime_type": mime_type,
+                "content": content,
+                "document_id": None,
+                "size": len(content),
+            }
+        )
+    return prepared
+
+
 def build_customer_mime(
     *,
     from_email: str,
@@ -358,6 +567,7 @@ def build_customer_mime(
     body_html: str | None,
     in_reply_to: str | None,
     references: list[str],
+    attachments: list[dict[str, Any]] | None = None,
 ) -> tuple[str, str]:
     domain = from_email.split("@", 1)[1] if "@" in from_email else "investhome.com.tr"
     message = EmailMessage()
@@ -382,6 +592,17 @@ def build_customer_mime(
         message.add_alternative(body_html, subtype="html")
     else:
         message.set_content(body_text or "")
+    for item in attachments or []:
+        mime_type = str(item.get("mime_type") or "application/octet-stream")
+        maintype, _, subtype = mime_type.partition("/")
+        if not maintype or not subtype:
+            maintype, subtype = "application", "octet-stream"
+        message.add_attachment(
+            item["content"],
+            maintype=maintype,
+            subtype=subtype,
+            filename=str(item.get("filename") or "dosya"),
+        )
     raw = base64.urlsafe_b64encode(message.as_bytes()).decode("ascii").rstrip("=")
     return raw, rfc_message_id
 
@@ -440,6 +661,9 @@ def send_customer_email(
     body_text: str,
     body_html: str | None,
     mailbox_factory: Any = None,
+    document_ids: list[UUID] | None = None,
+    uploads: list[dict[str, Any]] | None = None,
+    agreement_id: UUID | None = None,
 ) -> tuple[CrmCommunication, bool]:
     reply = mode in {"reply", "reply_all"}
     parent: CrmCommunication | None = None
@@ -503,6 +727,15 @@ def send_customer_email(
         if not recipients:
             raise GmailCustomerEmailError("contact_email_missing", 400)
 
+    attachments = resolve_email_attachments(
+        db,
+        actor,
+        document_ids=document_ids,
+        uploads=uploads,
+        contact_id=contact.id if contact is not None else contact_id,
+        lead_id=lead.id if lead is not None else lead_id,
+        agreement_id=agreement_id,
+    )
     raw, rfc_message_id = build_customer_mime(
         from_email=account.identity,
         to=recipients,
@@ -513,6 +746,7 @@ def send_customer_email(
         body_html=body_html,
         in_reply_to=in_reply_to,
         references=references,
+        attachments=attachments,
     )
     factory = mailbox_factory or GoogleGmailMailbox
     try:
@@ -551,6 +785,15 @@ def send_customer_email(
         metadata["lead_id"] = str(lead.id)
     elif contact is not None and contact.lead_id is not None:
         metadata["lead_id"] = str(contact.lead_id)
+    if attachments:
+        metadata["attachments"] = [
+            {
+                "filename": item["filename"],
+                "size": item["size"],
+                "document_id": item["document_id"],
+            }
+            for item in attachments
+        ]
 
     payload = {
         "channel": "email",

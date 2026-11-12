@@ -3,8 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
+import { fetchProjectPhases, type PhaseDraft } from '@/lib/api/project-phases';
 import { type Project, type ProjectInput } from '@/lib/api/projects';
 import { useProjectLabels } from '@/lib/i18n/project-labels';
+
+import { ProjectPhaseEditor } from './project-phase-editor';
 
 interface ProjectFormModalProps {
   mode: 'create' | 'edit' | null;
@@ -13,7 +16,7 @@ interface ProjectFormModalProps {
   error: string | null;
   canEditFinancials: boolean;
   onClose: () => void;
-  onSubmit: (input: ProjectInput) => void;
+  onSubmit: (input: ProjectInput, phases: PhaseDraft[]) => void;
 }
 
 const EMPTY_FORM: ProjectInput = {
@@ -31,6 +34,7 @@ const EMPTY_FORM: ProjectInput = {
   project_type: 'residential',
   development_type: 'ground_up',
   project_status: 'pipeline',
+  uses_phases: false,
   priority: 'medium',
   development_stage: null,
   ownership_entity: '',
@@ -122,6 +126,7 @@ export function ProjectFormModal({
   const { typeOptions, developmentTypeOptions, statusOptions, priorityOptions, stageOptions } =
     useProjectLabels();
   const [form, setForm] = useState<ProjectInput>(EMPTY_FORM);
+  const [phases, setPhases] = useState<PhaseDraft[]>([]);
 
   useEffect(() => {
     if (mode === 'edit' && project) {
@@ -140,6 +145,7 @@ export function ProjectFormModal({
         project_type: project.project_type,
         development_type: project.development_type,
         project_status: project.project_status,
+        uses_phases: Boolean(project.uses_phases),
         priority: project.priority ?? 'medium',
         development_stage: project.development_stage,
         ownership_entity: project.ownership_entity ?? '',
@@ -186,11 +192,24 @@ export function ProjectFormModal({
         description: project.description ?? '',
         notes: project.notes ?? '',
       });
+      void fetchProjectPhases(project.id, true)
+        .then((items) =>
+          setPhases(
+            items.map((item) => ({
+              id: item.id,
+              name: item.name,
+              display_order: item.display_order,
+              active: item.active,
+            })),
+          ),
+        )
+        .catch(() => setPhases([]));
       return;
     }
 
     if (mode === 'create') {
       setForm(EMPTY_FORM);
+      setPhases([]);
     }
   }, [project, mode]);
 
@@ -220,7 +239,7 @@ export function ProjectFormModal({
       target_completion_date: form.target_completion_date || null,
       actual_completion_date: form.actual_completion_date || null,
       estimated_closing_date: form.estimated_closing_date || null,
-    });
+    }, phases.filter((phase) => phase.name.trim()));
   };
 
   const numberField = (
@@ -343,6 +362,14 @@ export function ProjectFormModal({
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="leads__field">
+              <span>Fazlı proje</span>
+              <input
+                type="checkbox"
+                checked={Boolean(form.uses_phases)}
+                onChange={(event) => setForm((current) => ({ ...current, uses_phases: event.target.checked }))}
+              />
             </label>
             <label className="leads__field">
               <span>{t('form.priority')}</span>
@@ -683,6 +710,8 @@ export function ProjectFormModal({
               }
             />
           </label>
+
+          <ProjectPhaseEditor drafts={phases} onChange={setPhases} />
 
           {error && <p className="leads__error">{error}</p>}
 

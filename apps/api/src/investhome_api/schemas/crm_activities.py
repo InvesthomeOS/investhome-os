@@ -223,6 +223,8 @@ class CrmActivityUpdate(BaseModel):
     end_date: datetime | None = None
     duration_minutes: int | None = None
     due_date: datetime | None = None
+    due_on: date | None = None
+    due_time: str | None = Field(default=None, max_length=5, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     reminder_date: datetime | None = None
     timezone: str | None = Field(default=None, max_length=64)
     location: str | None = Field(default=None, max_length=500)
@@ -235,6 +237,7 @@ class CrmActivityUpdate(BaseModel):
     estimated_duration_minutes: int | None = None
     actual_duration_minutes: int | None = None
     metadata_json: dict[str, object] | None = None
+    reminders: list[CrmActivityReminderInput] | None = None
     is_pinned: bool | None = None
     is_favorite: bool | None = None
     entity_type: CrmActivityEntityType | None = None

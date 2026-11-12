@@ -18,6 +18,7 @@ from investhome_api.models.activity import ActivityEntityType
 from investhome_api.models.finance import ProjectBudget
 from investhome_api.models.project import Project
 from investhome_api.models.project_budget import (
+    BudgetAudience,
     BudgetCategoryType,
     BudgetRevisionStatus,
     BudgetVersionStatus,
@@ -120,6 +121,23 @@ def require_cost_codes(user: User) -> None:
 
 def _load_project(db: Session, project_id: UUID) -> Project:
     return project_svc.get_project_or_404(db, project_id, include_archived=True)
+
+
+def _require_audience(version: ProjectBudgetVersion, audience: BudgetAudience | None) -> None:
+    """A customer request never receives an internal version."""
+    if audience == BudgetAudience.CUSTOMER and version.audience != BudgetAudience.CUSTOMER:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="budget_not_found")
+
+
+_CUSTOMER_HIDDEN_LINE_FIELDS = {
+    "unit_cost": None,
+    "committed_cost": None,
+    "actual_cost": None,
+    "forecast_to_complete": None,
+    "forecast_at_completion": None,
+    "variance": None,
+    "legacy_project_budget_id": None,
+}
 
 
 def _load_version(db: Session, project_id: UUID, budget_id: UUID) -> ProjectBudgetVersion:
@@ -248,12 +266,21 @@ def _assert_no_cycle(db: Session, line_id: UUID, parent_line_id: UUID | None) ->
         current = parent.parent_line_id if parent else None
 
 
-def _next_version_number(db: Session, project_id: UUID) -> int:
-    current = db.scalar(
-        select(func.max(ProjectBudgetVersion.version_number)).where(
-            ProjectBudgetVersion.project_id == project_id
-        )
+def _next_version_number(
+    db: Session,
+    project_id: UUID,
+    audience: BudgetAudience,
+    phase_id: UUID | None = None,
+) -> int:
+    query = select(func.max(ProjectBudgetVersion.version_number)).where(
+        ProjectBudgetVersion.project_id == project_id,
+        ProjectBudgetVersion.audience == audience,
     )
+    if phase_id is None:
+        query = query.where(ProjectBudgetVersion.phase_id.is_(None))
+    else:
+        query = query.where(ProjectBudgetVersion.phase_id == phase_id)
+    current = db.scalar(query)
     return int(current or 0) + 1
 
 
@@ -576,15 +603,20 @@ def delete_cost_code(db: Session, cost_code_id: UUID, *, actor: User) -> None:
 # ---------------------------------------------------------------------------
 
 
-def list_versions(db: Session, user: User, project_id: UUID) -> BudgetVersionListResponse:
+def list_versions(
+    db: Session,
+    user: User,
+    project_id: UUID,
+    *,
+    audience: BudgetAudience | None = None,
+) -> BudgetVersionListResponse:
     require_view(user)
     _load_project(db, project_id)
+    query = select(ProjectBudgetVersion).where(ProjectBudgetVersion.project_id == project_id)
+    if audience is not None:
+        query = query.where(ProjectBudgetVersion.audience == audience)
     rows = list(
-        db.scalars(
-            select(ProjectBudgetVersion)
-            .where(ProjectBudgetVersion.project_id == project_id)
-            .order_by(ProjectBudgetVersion.version_number.desc())
-        ).all()
+        db.scalars(query.order_by(ProjectBudgetVersion.version_number.desc())).all()
     )
     return BudgetVersionListResponse(
         items=[_to_version_response(db, row) for row in rows],
@@ -603,11 +635,23 @@ def create_version(
     require_manage(user)
     ensure_system_taxonomy(db)
     project = _load_project(db, project_id)
+    phase_id = payload.phase_id
+    if phase_id is not None:
+        from investhome_api.models.inventory import ProjectPhase
+
+        phase = db.get(ProjectPhase, phase_id)
+        if phase is None or phase.project_id != project.id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Budget phase does not belong to this project",
+            )
     version = ProjectBudgetVersion(
         company_id=project.company_id,
         project_id=project.id,
+        phase_id=phase_id,
         name=payload.name.strip(),
-        version_number=_next_version_number(db, project.id),
+        audience=payload.audience,
+        version_number=_next_version_number(db, project.id, payload.audience, phase_id),
         status=BudgetVersionStatus.DRAFT,
         description=payload.description,
         currency=(payload.currency or project.currency or "USD").upper(),
@@ -631,9 +675,17 @@ def create_version(
     return _to_version_response(db, version)
 
 
-def get_version(db: Session, user: User, project_id: UUID, budget_id: UUID) -> BudgetVersionResponse:
+def get_version(
+    db: Session,
+    user: User,
+    project_id: UUID,
+    budget_id: UUID,
+    *,
+    audience: BudgetAudience | None = None,
+) -> BudgetVersionResponse:
     require_view(user)
     version = _load_version(db, project_id, budget_id)
+    _require_audience(version, audience)
     return _to_version_response(db, version)
 
 
@@ -763,6 +815,7 @@ def approve_version(
         db.scalars(
             select(ProjectBudgetVersion).where(
                 ProjectBudgetVersion.project_id == project_id,
+                ProjectBudgetVersion.audience == version.audience,
                 ProjectBudgetVersion.is_current.is_(True),
                 ProjectBudgetVersion.id != version.id,
             )
@@ -834,10 +887,17 @@ def set_current_version(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Only approved budgets can be set as current",
         )
+    phase_scope = (
+        ProjectBudgetVersion.phase_id.is_(None)
+        if version.phase_id is None
+        else ProjectBudgetVersion.phase_id == version.phase_id
+    )
     others = list(
         db.scalars(
             select(ProjectBudgetVersion).where(
                 ProjectBudgetVersion.project_id == project_id,
+                ProjectBudgetVersion.audience == version.audience,
+                phase_scope,
                 ProjectBudgetVersion.is_current.is_(True),
                 ProjectBudgetVersion.id != version.id,
             )
@@ -875,8 +935,10 @@ def clone_version(
     clone = ProjectBudgetVersion(
         company_id=project.company_id,
         project_id=project.id,
+        phase_id=source.phase_id,
         name=f"{source.name} (Copy)",
-        version_number=_next_version_number(db, project.id),
+        audience=source.audience,
+        version_number=_next_version_number(db, project.id, source.audience, source.phase_id),
         status=BudgetVersionStatus.DRAFT,
         description=source.description,
         currency=source.currency,
@@ -965,9 +1027,11 @@ def list_lines(
     active_only: bool = True,
     page: int = 1,
     page_size: int = 100,
+    audience: BudgetAudience | None = None,
 ) -> BudgetLineListResponse:
     require_view(user)
-    _load_version(db, project_id, budget_id)
+    version = _load_version(db, project_id, budget_id)
+    _require_audience(version, audience)
     query = select(ProjectBudgetLine).where(ProjectBudgetLine.budget_version_id == budget_id)
     count_query = (
         select(func.count())
@@ -1004,8 +1068,11 @@ def list_lines(
     )
     categories = _load_categories_map(db, {row.category_id for row in rows})
     codes = _load_codes_map(db, {row.cost_code_id for row in rows if row.cost_code_id})
+    items = [_to_line_response(row, categories=categories, codes=codes) for row in rows]
+    if audience == BudgetAudience.CUSTOMER:
+        items = [item.model_copy(update=_CUSTOMER_HIDDEN_LINE_FIELDS) for item in items]
     return BudgetLineListResponse(
-        items=[_to_line_response(row, categories=categories, codes=codes) for row in rows],
+        items=items,
         total=total,
         page=page,
         page_size=page_size,
@@ -1545,8 +1612,15 @@ def get_revision(
     return _to_revision_response(db, revision)
 
 
-def get_budget_summary(db: Session, user: User, project_id: UUID) -> BudgetSummaryResponse:
+def get_budget_summary(
+    db: Session,
+    user: User,
+    project_id: UUID,
+    *,
+    audience: BudgetAudience | None = None,
+) -> BudgetSummaryResponse:
     require_view(user)
+    view = audience or BudgetAudience.INTERNAL
     ensure_system_taxonomy(db)
     project = _load_project(db, project_id)
     permissions = budget_permissions(user)
@@ -1556,6 +1630,7 @@ def get_budget_summary(db: Session, user: User, project_id: UUID) -> BudgetSumma
     current = db.scalars(
         select(ProjectBudgetVersion).where(
             ProjectBudgetVersion.project_id == project_id,
+            ProjectBudgetVersion.audience == view,
             ProjectBudgetVersion.is_current.is_(True),
             ProjectBudgetVersion.status == BudgetVersionStatus.APPROVED,
         )
@@ -1563,7 +1638,10 @@ def get_budget_summary(db: Session, user: User, project_id: UUID) -> BudgetSumma
     if current is None:
         current = db.scalars(
             select(ProjectBudgetVersion)
-            .where(ProjectBudgetVersion.project_id == project_id)
+            .where(
+                ProjectBudgetVersion.project_id == project_id,
+                ProjectBudgetVersion.audience == view,
+            )
             .order_by(ProjectBudgetVersion.version_number.desc())
         ).first()
 
@@ -1583,6 +1661,8 @@ def get_budget_summary(db: Session, user: User, project_id: UUID) -> BudgetSumma
         }
         for item in legacy
     ]
+    if view == BudgetAudience.CUSTOMER:
+        legacy_payload = []
 
     if current is None:
         completeness["budget"] = "missing"
@@ -1697,35 +1777,53 @@ def get_budget_summary(db: Session, user: User, project_id: UUID) -> BudgetSumma
         "basic_forecast_at_completion is a commitment-based estimate, not a full forecasting engine"
     )
 
+    totals = {
+        "original_budget": metric(original),
+        "approved_revisions": metric(revisions),
+        "current_budget": metric(current_total),
+        "committed_cost": metric(committed_cost),
+        "pending_commitments": metric(pending_commitments),
+        "actual_cost": metric(actual_cost),
+        "paid_cost": metric(paid_cost),
+        "retained_cost": metric(retained_cost),
+        "remaining_budget": metric(remaining_budget),
+        "available_to_commit": metric(available_to_commit),
+        "forecast_at_completion": unavailable(
+            "Full forecasting engine is not implemented; see basic_forecast_at_completion"
+        ),
+        "basic_forecast_at_completion": metric(basic_forecast),
+        "projected_variance": metric(projected_variance),
+        "contingency_budget": metric(contingency) if contingency > ZERO else unavailable("No contingency lines"),
+        "contingency_used": unavailable("Contingency usage tracking is not implemented"),
+        "contingency_remaining": (
+            metric(contingency) if contingency > ZERO else unavailable("No contingency lines")
+        ),
+        "budget_utilization_percentage": (
+            metric(utilization.quantize(Decimal("0.01")))
+            if utilization is not None
+            else unavailable("No budget baseline")
+        ),
+    }
+    if view == BudgetAudience.CUSTOMER:
+        hidden = unavailable("Not included in the customer proforma")
+        for key in (
+            "committed_cost",
+            "pending_commitments",
+            "actual_cost",
+            "paid_cost",
+            "retained_cost",
+            "remaining_budget",
+            "available_to_commit",
+            "basic_forecast_at_completion",
+            "projected_variance",
+            "contingency_used",
+            "contingency_remaining",
+            "budget_utilization_percentage",
+        ):
+            totals[key] = hidden
     return BudgetSummaryResponse(
         budget_version=_to_version_response(db, current),
-        totals={
-            "original_budget": metric(original),
-            "approved_revisions": metric(revisions),
-            "current_budget": metric(current_total),
-            "committed_cost": metric(committed_cost),
-            "pending_commitments": metric(pending_commitments),
-            "actual_cost": metric(actual_cost),
-            "paid_cost": metric(paid_cost),
-            "retained_cost": metric(retained_cost),
-            "remaining_budget": metric(remaining_budget),
-            "available_to_commit": metric(available_to_commit),
-            "forecast_at_completion": unavailable(
-                "Full forecasting engine is not implemented; see basic_forecast_at_completion"
-            ),
-            "basic_forecast_at_completion": metric(basic_forecast),
-            "projected_variance": metric(projected_variance),
-            "contingency_budget": metric(contingency) if contingency > ZERO else unavailable("No contingency lines"),
-            "contingency_used": unavailable("Contingency usage tracking is not implemented"),
-            "contingency_remaining": (
-                metric(contingency) if contingency > ZERO else unavailable("No contingency lines")
-            ),
-            "budget_utilization_percentage": (
-                metric(utilization.quantize(Decimal("0.01")))
-                if utilization is not None
-                else unavailable("No budget baseline")
-            ),
-        },
+        totals=totals,
         categories=sorted(by_category.values(), key=lambda item: item.category_code),
         data_completeness=completeness,
         permissions=permissions,

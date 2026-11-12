@@ -537,6 +537,9 @@ export async function sendCustomerEmail(payload: {
   subject: string;
   body_text: string;
   body_html?: string | null;
+  agreement_id?: string | null;
+  document_ids?: string[];
+  uploads?: Array<{ filename: string; content_base64: string }>;
 }): Promise<{
   id: string;
   channel: string;

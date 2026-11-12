@@ -237,6 +237,38 @@ def sniff_content_kind(content: bytes) -> str:
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="documents.errors.unknown_type")
 
 
+# Sniffed kinds that map to exactly one allowed extension. OLE, video containers,
+# and plain text stay ambiguous and are never guessed from a missing filename.
+_UNAMBIGUOUS_KIND_EXTENSION: dict[str, str] = {
+    "pdf": "pdf",
+    "jpeg": "jpg",
+    "png": "png",
+    "gif": "gif",
+    "webp": "webp",
+    "docx": "docx",
+    "xlsx": "xlsx",
+    "pptx": "pptx",
+    "zip": "zip",
+    "dwg": "dwg",
+    "webm": "webm",
+}
+
+
+def infer_unambiguous_extension(kind: str) -> str | None:
+    return _UNAMBIGUOUS_KIND_EXTENSION.get(kind)
+
+
+def filename_with_extension(name: str, ext: str) -> str:
+    """Append a sniffed extension when the sanitized name has none."""
+    current = extract_extension(name)
+    if current:
+        return name
+    base = (name or "upload").strip() or "upload"
+    if base.lower().endswith(f".{ext}"):
+        return sanitize_filename(base)
+    return sanitize_filename(f"{base}.{ext}")
+
+
 def _kind_matches_extension(kind: str, ext: str) -> bool:
     if kind == "pdf":
         return ext == "pdf"
@@ -293,9 +325,22 @@ def validate_upload_content(
 
     original_name = sanitize_filename(filename)
     ext = extract_extension(original_name)
-    validate_extension(ext)
-    mime_type = validate_mime_type(ext, declared_mime)
-    kind = sniff_content_kind(content)
+    if ext:
+        validate_extension(ext)
+        mime_type = validate_mime_type(ext, declared_mime)
+        kind = sniff_content_kind(content)
+    else:
+        kind = sniff_content_kind(content)
+        inferred = infer_unambiguous_extension(kind)
+        if not inferred:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="documents.errors.unknown_type",
+            )
+        ext = inferred
+        original_name = filename_with_extension(original_name, ext)
+        validate_extension(ext)
+        mime_type = validate_mime_type(ext, declared_mime)
     if not _kind_matches_extension(kind, ext):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

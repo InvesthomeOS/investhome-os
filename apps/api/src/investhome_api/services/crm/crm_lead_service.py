@@ -22,6 +22,7 @@ from investhome_api.models.crm_contact import (
     CrmRecordKind,
 )
 from investhome_api.models.lead import Lead, LeadStatus
+from investhome_api.models.project import Project, ProjectStatus
 from investhome_api.models.user_auth import User, UserStatus
 from investhome_api.schemas.crm_contacts import CrmContactCreate, CrmDuplicateCheckRequest
 from investhome_api.schemas.crm_leads import (
@@ -35,6 +36,7 @@ from investhome_api.schemas.crm_leads import (
     CrmLeadKpis,
     CrmLeadListResponse,
     CrmLeadMatch,
+    CrmLeadNoteItem,
     CrmLeadOwnerOption,
     CrmLeadStage,
     CrmLeadUpdate,
@@ -266,6 +268,14 @@ def _is_meta_dm_lead(lead: Lead) -> bool:
     return _is_facebook_messenger_lead(lead) or _is_instagram_dm_lead(lead)
 
 
+def _agency_customer_clause():
+    original_stage = func.coalesce(
+        Lead.metadata_json["original_asama"].as_string(),
+        "",
+    )
+    return original_stage == "Acenta Müşterileri"
+
+
 def _meta_dm_clause():
     """Messenger and Instagram DM leads are contacts, not pipeline cards."""
     intake = func.lower(func.trim(func.coalesce(Lead.metadata_json["intake"].as_string(), "")))
@@ -466,6 +476,69 @@ class _UnsetType:
 _UNSET = _UnsetType()
 
 
+def _interest_view(db: Session, lead: Lead) -> dict[str, object]:
+    from investhome_api.models.inventory import InventoryAsset, ProjectPhase
+    from investhome_api.models.project import Project
+
+    project_name = lead.interested_project
+    if lead.project_id is not None:
+        project = db.get(Project, lead.project_id)
+        if project is not None:
+            project_name = project.project_name
+    phase_name = None
+    if lead.phase_id is not None:
+        phase = db.get(ProjectPhase, lead.phase_id)
+        phase_name = phase.name if phase is not None else None
+    unit_number = None
+    if lead.inventory_asset_id is not None:
+        asset = db.get(InventoryAsset, lead.inventory_asset_id)
+        unit_number = asset.display_id if asset is not None else None
+    label = " · ".join(part for part in (project_name, phase_name, unit_number) if part)
+    return {
+        "project": project_name,
+        "project_id": lead.project_id,
+        "phase_id": lead.phase_id,
+        "phase_name": phase_name,
+        "inventory_asset_id": lead.inventory_asset_id,
+        "unit_number": unit_number,
+        "interest_label": label or None,
+    }
+
+
+def _apply_interest(db: Session, lead: Lead, payload: object, data: set[str] | None) -> None:
+    from investhome_api.services.inventory.phase_service import PhaseError, assign_interest
+
+    keys = {"project_id", "phase_id", "inventory_asset_id"}
+    if data is not None and not keys.intersection(data):
+        return
+    sent_project = data is None or "project_id" in data
+    sent_phase = data is None or "phase_id" in data
+    sent_asset = data is None or "inventory_asset_id" in data
+    if data is None and not any(
+        getattr(payload, key, None) is not None for key in keys
+    ):
+        return
+    project_id = payload.project_id if sent_project else lead.project_id
+    phase_id = payload.phase_id if sent_phase else (None if "project_id" in (data or set()) else lead.phase_id)
+    asset_id = payload.inventory_asset_id if sent_asset else (
+        None if (data or set()).intersection({"project_id", "phase_id"}) else lead.inventory_asset_id
+    )
+    try:
+        project_id, phase_id, asset_id, project_name = assign_interest(
+            db,
+            project_id=project_id,
+            phase_id=phase_id,
+            inventory_asset_id=asset_id,
+        )
+    except PhaseError as exc:
+        raise LeadValidationError(exc.key, code=exc.key) from exc
+    lead.project_id = project_id
+    lead.phase_id = phase_id
+    lead.inventory_asset_id = asset_id
+    if project_name:
+        lead.interested_project = project_name
+
+
 def _to_item(
     db: Session,
     lead: Lead,
@@ -490,7 +563,7 @@ def _to_item(
         campaign=lead.campaign,
         ad_id=str(meta["ad_id"]) if meta.get("ad_id") else None,
         form_id=str(meta["form_id"]) if meta.get("form_id") else None,
-        project=lead.interested_project,
+        **_interest_view(db, lead),
         owner_user_id=lead.assigned_manager_id,
         owner_name=_owner_name(db, lead.assigned_manager_id, owners),
         stage=stage_of(lead),
@@ -538,6 +611,78 @@ def _activity_items(db: Session, lead_id: UUID) -> list[CrmLeadActivityItem]:
     return items
 
 
+def _note_text(row: object) -> str:
+    description = getattr(row, "description", None)
+    summary = getattr(row, "summary", None)
+    return str(description or summary or "").strip()
+
+
+def _lead_note_entries(db: Session, lead: Lead, contact_id: UUID | None) -> list[CrmLeadNoteItem]:
+    from investhome_api.models.crm_activity import CrmActivity, CrmActivityEntityType, CrmActivityType
+
+    entries: list[CrmLeadNoteItem] = []
+    seen: set[str] = set()
+    if contact_id is not None:
+        rows = db.scalars(
+            select(CrmActivity)
+            .where(
+                CrmActivity.entity_type == CrmActivityEntityType.CONTACT,
+                CrmActivity.entity_id == contact_id,
+                CrmActivity.activity_type.in_((CrmActivityType.NOTE, CrmActivityType.COMMENT)),
+                CrmActivity.archived_at.is_(None),
+            )
+            .order_by(CrmActivity.created_at.asc())
+        ).all()
+        for row in rows:
+            body = _note_text(row)
+            if not body or body in seen:
+                continue
+            seen.add(body)
+            entries.append(
+                CrmLeadNoteItem(
+                    id=str(row.id),
+                    body=body,
+                    author_name=_owner_name(db, row.owner_id),
+                    created_at=row.created_at,
+                )
+            )
+    original = (lead.notes or "").strip()
+    if original and original not in seen:
+        entries.insert(
+            0,
+            CrmLeadNoteItem(
+                id=f"lead:{lead.id}",
+                body=original,
+                author_name=_owner_name(db, lead.assigned_manager_id),
+                created_at=lead.created_at,
+            ),
+        )
+    return entries
+
+
+def _record_creation_note(db: Session, lead: Lead, contact: CrmContact, actor: User | None) -> None:
+    body = (lead.notes or "").strip()
+    if not body or actor is None:
+        return
+    from investhome_api.schemas.crm_activities import CrmNoteCreate
+    from investhome_api.services.crm.activity_service import create_workspace_note
+
+    try:
+        create_workspace_note(
+            db,
+            actor,
+            CrmNoteCreate(
+                contact_id=contact.id,
+                description=body,
+                title=body.splitlines()[0][:120],
+                metadata_json={"lead_id": str(lead.id), "source": "lead_create"},
+            ),
+            commit=False,
+        )
+    except ValueError:
+        return
+
+
 def _to_detail(db: Session, lead: Lead) -> CrmLeadDetail:
     from investhome_api.services.crm.activity_service import list_tasks_for_lead
 
@@ -549,6 +694,7 @@ def _to_detail(db: Session, lead: Lead) -> CrmLeadDetail:
         metadata=_meta(lead) or None,
         activity=_activity_items(db, lead.id),
         tasks=list_tasks_for_lead(db, lead.id),
+        note_entries=_lead_note_entries(db, lead, item.contact_id),
     )
 
 
@@ -597,6 +743,7 @@ def _link_manual_lead_contact(
     *,
     people: list[CrmLeadMatch],
     actor: User | None,
+    profile: dict[str, Any] | None = None,
 ) -> CrmContact:
     unique = _unique_person_matches(people)
     contact: CrmContact | None = None
@@ -604,6 +751,9 @@ def _link_manual_lead_contact(
         contact = db.get(CrmContact, unique[0].id)
     if contact is None or contact.archived_at is not None:
         first_name, last_name = _split_name(lead.full_name)
+        extra = dict(profile or {})
+        first_name = extra.pop("first_name", None) or first_name
+        last_name = extra.pop("last_name", None) or last_name
         try:
             contact = create_contact(
                 db,
@@ -621,6 +771,7 @@ def _link_manual_lead_contact(
                     notes=lead.notes,
                     lifecycle_stage=CrmLifecycleStage.NEW,
                     status=CrmContactStatus.PROSPECT,
+                    **extra,
                 ),
                 actor=actor,
             )
@@ -671,17 +822,13 @@ def _filter_options(db: Session) -> tuple[list[str], list[str], list[CrmLeadOwne
     )
     project_rows = list(
         db.scalars(
-            select(Lead.interested_project)
-            .where(
-                Lead.archived_at.is_(None),
-                Lead.is_demo.is_(False),
-                Lead.interested_project.isnot(None),
-            )
-            .distinct()
+            select(Project.project_name)
+            .where(Project.project_status != ProjectStatus.CANCELLED)
+            .order_by(Project.project_name.asc())
         ).all()
     )
     sources = list(dict.fromkeys([*KNOWN_SOURCES, *[str(item) for item in source_rows if item]]))
-    projects = sorted({str(item) for item in project_rows if item})
+    projects = [str(item) for item in project_rows if item]
     users = list(
         db.scalars(
             select(User).where(User.status == UserStatus.ACTIVE).order_by(User.full_name.asc())
@@ -711,12 +858,41 @@ def _card_page_size(page_size: int) -> int:
     return min(max(page_size, 1), LEAD_CARD_PAGE_MAX)
 
 
+def _canonical_project_clause(db: Session, project: str, phase_id: UUID | None):
+    """Match a lead by project id or by a converted contact's canonical membership."""
+    token = project.strip()
+    project_id: UUID | None
+    try:
+        project_id = UUID(token)
+    except ValueError:
+        project_id = db.scalar(select(Project.id).where(Project.project_name == token))
+    if project_id is None:
+        return Lead.id.is_(None)
+    from investhome_api.services.crm.person_project_membership import person_project_contact_ids
+
+    members = person_project_contact_ids(
+        db,
+        project_id=project_id,
+        phase_id=phase_id,
+        include_leads=True,
+    )
+    own = [Lead.project_id == project_id]
+    if phase_id is not None:
+        own.append(Lead.phase_id == phase_id)
+    clauses = [and_(*own)]
+    if members:
+        clauses.append(Lead.converted_contact_id.in_(members))
+    return or_(*clauses)
+
+
 def _lead_filters(
+    db: Session,
     *,
     search: str | None = None,
     stage: str | None = None,
     source: str | None = None,
     project: str | None = None,
+    phase_id: UUID | None = None,
     owner_id: UUID | None = None,
     date_from: datetime | None = None,
     date_to: datetime | None = None,
@@ -728,6 +904,12 @@ def _lead_filters(
     filters: list = [Lead.archived_at.is_(None), Lead.is_demo.is_(False)]
     if (surface or "").strip().lower() == "pipeline":
         filters.append(~_meta_dm_clause())
+        filters.append(
+            or_(
+                ~_agency_customer_clause(),
+                Lead.status == LeadStatus.WON,
+            )
+        )
     needle = _blank(search)
     if needle:
         like = f"%{needle}%"
@@ -748,7 +930,9 @@ def _lead_filters(
     if source:
         filters.append(func.lower(Lead.source) == source.strip().lower())
     if project:
-        filters.append(Lead.interested_project == project)
+        filters.append(_canonical_project_clause(db, project, phase_id))
+    elif phase_id is not None:
+        filters.append(Lead.phase_id == phase_id)
     if owner_id:
         filters.append(Lead.assigned_manager_id == owner_id)
     if date_from:
@@ -938,6 +1122,7 @@ def list_crm_leads(
     stage: str | None = None,
     source: str | None = None,
     project: str | None = None,
+    phase_id: UUID | None = None,
     owner_id: UUID | None = None,
     date_from: datetime | None = None,
     date_to: datetime | None = None,
@@ -948,10 +1133,12 @@ def list_crm_leads(
     page_size: int = LEAD_LIST_PAGE_SIZE,
 ) -> CrmLeadListResponse:
     filters = _lead_filters(
+        db,
         search=search,
         stage=stage,
         source=source,
         project=project,
+        phase_id=phase_id,
         owner_id=owner_id,
         date_from=date_from,
         date_to=date_to,
@@ -984,6 +1171,7 @@ def lead_board(
     stage: str | None = None,
     source: str | None = None,
     project: str | None = None,
+    phase_id: UUID | None = None,
     owner_id: UUID | None = None,
     date_from: datetime | None = None,
     date_to: datetime | None = None,
@@ -994,10 +1182,12 @@ def lead_board(
 ) -> dict[str, object]:
     """Stage totals and the first card page for the filtered lead set."""
     filters = _lead_filters(
+        db,
         search=search,
         stage=stage,
         source=source,
         project=project,
+        phase_id=phase_id,
         owner_id=owner_id,
         date_from=date_from,
         date_to=date_to,
@@ -1025,10 +1215,12 @@ def lead_board(
             )
             continue
         column_filters = _lead_filters(
+            db,
             search=search,
             stage=selected or name,
             source=source,
             project=project,
+            phase_id=phase_id,
             owner_id=owner_id,
             date_from=date_from,
             date_to=date_to,
@@ -1066,6 +1258,7 @@ def lead_board_cards(
     search: str | None = None,
     source: str | None = None,
     project: str | None = None,
+    phase_id: UUID | None = None,
     owner_id: UUID | None = None,
     date_from: datetime | None = None,
     date_to: datetime | None = None,
@@ -1076,9 +1269,11 @@ def lead_board_cards(
     page_size: int = LEAD_CARD_PAGE_SIZE,
 ) -> dict[str, object]:
     filters = _lead_filters(
+        db,
         search=search,
         source=source,
         project=project,
+        phase_id=phase_id,
         owner_id=owner_id,
         date_from=date_from,
         date_to=date_to,
@@ -1113,8 +1308,45 @@ def _prepare_identity(
     phone_raw = _blank(getattr(payload, "phone", None))
     parsed = parse_phone(phone_raw)
     phone = parsed.e164 or parsed.match_key if parsed is not None else phone_raw
-    name = _blank(getattr(payload, "full_name", None))
+    composed = " ".join(
+        part
+        for part in (
+            _blank(getattr(payload, "first_name", None)),
+            _blank(getattr(payload, "last_name", None)),
+        )
+        if part
+    )
+    name = composed or _blank(getattr(payload, "full_name", None))
     return name or "", phone, email
+
+
+def _new_contact_profile(payload: CrmLeadCreate | CrmLeadIngestRequest) -> dict[str, Any]:
+    """Fields applied only when a new Contact is created. Existing Contacts are not overwritten."""
+    profile: dict[str, Any] = {}
+    for source, target in (
+        ("address_line1", "address_line1"),
+        ("city", "city"),
+        ("state_province", "state_province"),
+        ("country", "country"),
+        ("organization_name", "organization_name"),
+        ("job_title", "job_title"),
+    ):
+        value = _blank(getattr(payload, source, None))
+        if value:
+            profile[target] = value
+    language = _blank(getattr(payload, "language", None))
+    if language:
+        profile["communication_prefs"] = {"language": language}
+    follow_up = getattr(payload, "next_follow_up_at", None)
+    if follow_up is not None:
+        profile["next_follow_up_at"] = follow_up
+    first_name = _blank(getattr(payload, "first_name", None))
+    last_name = _blank(getattr(payload, "last_name", None))
+    if first_name:
+        profile["first_name"] = first_name
+    if last_name:
+        profile["last_name"] = last_name
+    return profile
 
 
 def create_crm_lead(
@@ -1127,9 +1359,26 @@ def create_crm_lead(
     name, phone, email = _prepare_identity(payload)
     display = _require_identity(name, phone, email)
     lead_matches = _find_lead_matches(db, email=email, phone=phone)
-    person_matches = _unique_person_matches(
-        _person_matches(db, email=email, phone=phone, name=display)
-    )
+    chosen_contact: CrmContact | None = None
+    if getattr(payload, "contact_id", None):
+        chosen_contact = db.get(CrmContact, payload.contact_id)
+        if chosen_contact is None or chosen_contact.archived_at is not None:
+            raise LeadValidationError("Seçilen kişi bulunamadı")
+        person_matches = [
+            CrmLeadMatch(
+                kind="person",
+                id=chosen_contact.id,
+                name=chosen_contact.display_name,
+                phone=chosen_contact.primary_phone,
+                email=chosen_contact.primary_email,
+                reason="selected",
+                href=f"/workspaces/crm/contacts/{chosen_contact.id}",
+            )
+        ]
+    else:
+        person_matches = _unique_person_matches(
+            _person_matches(db, email=email, phone=phone, name=display)
+        )
     if lead_matches:
         raise LeadConflictError(
             CrmLeadConflictBody(
@@ -1138,7 +1387,7 @@ def create_crm_lead(
                 matches=_lead_match_items(lead_matches),
             )
         )
-    if len(person_matches) > 1:
+    if chosen_contact is None and len(person_matches) > 1:
         raise LeadConflictError(
             CrmLeadConflictBody(
                 code="ambiguous_person",
@@ -1146,7 +1395,7 @@ def create_crm_lead(
                 matches=person_matches,
             )
         )
-    if person_matches and not confirm:
+    if chosen_contact is None and person_matches and not confirm:
         raise LeadConflictError(
             CrmLeadConflictBody(
                 code="existing_person",
@@ -1155,7 +1404,7 @@ def create_crm_lead(
             )
         )
 
-    stage = payload.stage or "yeni"
+    stage = payload.stage or CRM_STAGES[0]
     if stage == "converted":
         raise LeadValidationError("Satış Kapama yalnızca dönüşüm işlemi ile yapılır")
     lead = Lead(
@@ -1176,6 +1425,7 @@ def create_crm_lead(
     created_junk: tuple[str, str | None] | None = None
     if stage == "unqualified":
         created_junk = _apply_junk_reason(lead, payload.junk_reason, payload.junk_reason_detail)
+    _apply_interest(db, lead, payload, None)
     db.add(lead)
     db.flush()
     _put_meta(
@@ -1184,7 +1434,14 @@ def create_crm_lead(
         form_id=_blank(payload.form_id),
         intake="manual",
     )
-    contact = _link_manual_lead_contact(db, lead, people=person_matches, actor=actor)
+    contact = _link_manual_lead_contact(
+        db,
+        lead,
+        people=person_matches,
+        actor=actor,
+        profile=None if chosen_contact is not None else _new_contact_profile(payload),
+    )
+    _record_creation_note(db, lead, contact, actor)
     _log(
         db,
         lead,
@@ -1203,6 +1460,9 @@ def create_crm_lead(
         },
     )
     db.flush()
+    from investhome_api.services.user_notifications import notify_new_lead
+
+    notify_new_lead(db, lead, actor=actor, contact_id=contact.id)
     return _to_detail(db, lead)
 
 
@@ -1236,9 +1496,12 @@ def update_crm_lead(
     if "campaign" in data:
         lead.campaign = _blank(payload.campaign)
         changed.append("campaign")
-    if "project" in data:
+    if "project" in data and "project_id" not in data:
         lead.interested_project = _blank(payload.project)
         changed.append("project")
+    if {"project_id", "phase_id", "inventory_asset_id"}.intersection(data):
+        _apply_interest(db, lead, payload, set(data))
+        changed.append("interest")
     if "notes" in data:
         lead.notes = _blank(payload.notes)
         changed.append("notes")
@@ -1608,7 +1871,9 @@ def ingest_crm_lead(
     name, phone, email = _prepare_identity(payload)
     has_identity = bool(name or phone or email)
     unique_people = (
-        _person_matches(db, email=email, phone=phone, name=name or None) if has_identity else []
+        _unique_person_matches(_person_matches(db, email=email, phone=phone, name=name or None))
+        if has_identity
+        else []
     )
     ingest_status = "ok"
     display = name or email or phone or UNMATCHED_LEAD
@@ -1621,20 +1886,44 @@ def ingest_crm_lead(
         ingest_status = "unmatched"
         display = name or UNMATCHED_LEAD
 
-    lead = Lead(
-        full_name=display,
-        email=email,
-        phone=phone,
-        source=_blank(payload.source) or provider,
-        campaign=_blank(payload.campaign),
-        interested_project=_blank(payload.project),
-        notes=_blank(payload.notes),
-        status=LeadStatus.NEW,
-        provider=provider,
-        ingest_status=ingest_status,
-        is_demo=False,
-    )
-    db.add(lead)
+    source = _blank(payload.source) or provider
+    open_matches = [
+        row
+        for row in _find_lead_matches(db, email=email, phone=phone)
+        if _as_status(row.status) not in {LeadStatus.WON, LeadStatus.LOST}
+    ] if phone or email else []
+    created = not open_matches
+    if open_matches:
+        lead = open_matches[0]
+        if name and lead.full_name in {UNNAMED_LEAD, UNMATCHED_LEAD, "", None}:
+            lead.full_name = display
+        if not lead.email and email:
+            lead.email = email
+        if not lead.phone and phone:
+            lead.phone = phone
+        if not lead.source:
+            lead.source = source
+        if not lead.campaign and _blank(payload.campaign):
+            lead.campaign = _blank(payload.campaign)
+        if not lead.interested_project and _blank(payload.project):
+            lead.interested_project = _blank(payload.project)
+        lead.provider = provider
+        lead.ingest_status = ingest_status
+    else:
+        lead = Lead(
+            full_name=display,
+            email=email,
+            phone=phone,
+            source=source,
+            campaign=_blank(payload.campaign),
+            interested_project=_blank(payload.project),
+            notes=_blank(payload.notes),
+            status=LeadStatus.NEW,
+            provider=provider,
+            ingest_status=ingest_status,
+            is_demo=False,
+        )
+        db.add(lead)
     db.flush()
     _put_meta(
         lead,
@@ -1647,15 +1936,28 @@ def ingest_crm_lead(
         else None,
         existing_person_id=str(unique_people[0].id) if len(unique_people) == 1 else None,
     )
+    if ingest_status == "ok" and (phone or email) and len(unique_people) <= 1:
+        _link_manual_lead_contact(
+            db,
+            lead,
+            people=unique_people,
+            actor=actor,
+            profile=_new_contact_profile(payload),
+        )
     _log(
         db,
         lead,
-        action=ActivityAction.CREATED,
+        action=ActivityAction.CREATED if created else ActivityAction.UPDATED,
         description_key=f"crm.leads.ingest.{ingest_status}",
         actor=actor,
-        metadata={"provider": provider, "ingest_status": ingest_status},
+        metadata={"provider": provider, "ingest_status": ingest_status, "updated_existing": not created},
     )
     db.flush()
+    if created:
+        from investhome_api.services.user_notifications import notify_new_lead
+
+        linked = lead.converted_contact_id
+        notify_new_lead(db, lead, actor=actor, contact_id=linked)
     return _to_detail(db, lead)
 
 

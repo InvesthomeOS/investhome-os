@@ -191,6 +191,11 @@ from investhome_api.models.notification import (
     NotificationStatus,
     NotificationType,
 )
+from investhome_api.models.user_notification_preference import (  # noqa: F401
+    NotificationDelivery,
+    UserNotificationPreference,
+    UserPushSubscription,
+)
 from investhome_api.models.company import (  # noqa: F401
     Company,
     CompanyAddress,

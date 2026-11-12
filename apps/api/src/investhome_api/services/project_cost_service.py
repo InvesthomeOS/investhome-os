@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from investhome_api.models.activity import ActivityEntityType
 from investhome_api.models.project import Project
 from investhome_api.models.project_budget import (
+    BudgetAudience,
     BudgetVersionStatus,
     ProjectBudgetCategory,
     ProjectBudgetLine,
@@ -1064,6 +1065,7 @@ def create_commitment(
         current = db.scalars(
             select(ProjectBudgetVersion).where(
                 ProjectBudgetVersion.project_id == project_id,
+                ProjectBudgetVersion.audience == BudgetAudience.INTERNAL,
                 ProjectBudgetVersion.is_current.is_(True),
                 ProjectBudgetVersion.status == BudgetVersionStatus.APPROVED,
             )
@@ -3016,6 +3018,7 @@ def cost_by_budget_line(
     version = db.scalars(
         select(ProjectBudgetVersion).where(
             ProjectBudgetVersion.project_id == project_id,
+            ProjectBudgetVersion.audience == BudgetAudience.INTERNAL,
             ProjectBudgetVersion.is_current.is_(True),
             ProjectBudgetVersion.status == BudgetVersionStatus.APPROVED,
         )
@@ -3196,6 +3199,7 @@ def get_cost_summary(db: Session, user: User, project_id: UUID) -> CostSummaryRe
     version = db.scalars(
         select(ProjectBudgetVersion).where(
             ProjectBudgetVersion.project_id == project_id,
+            ProjectBudgetVersion.audience == BudgetAudience.INTERNAL,
             ProjectBudgetVersion.is_current.is_(True),
             ProjectBudgetVersion.status == BudgetVersionStatus.APPROVED,
         )

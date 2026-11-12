@@ -203,7 +203,7 @@ function ContactDetailPresentation({
             aria-label={canRestore ? 'Restore customer' : canArchive ? 'Archive customer' : 'More customer actions'}
             onClick={canRestore ? onRestore : canArchive ? onArchive : undefined}
           >
-            <span aria-hidden="true">⋮</span>
+            <span aria-hidden="true">⋯</span>
           </button>
         </div>
       </div>

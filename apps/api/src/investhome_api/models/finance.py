@@ -201,6 +201,11 @@ class FinanceTransaction(Base):
         ForeignKey("projects.id"),
         nullable=True,
     )
+    agreement_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("crm_agreements.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     investor_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("investors.id"),
         nullable=True,
@@ -272,12 +277,17 @@ class FundingCommitment(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    phase_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("project_phases.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     investor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("investors.id"), nullable=False)
     commitment_type: Mapped[CommitmentType] = mapped_column(
         Enum(CommitmentType, native_enum=False, length=50),
         nullable=False,
     )
     committed_amount: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
+    # Uses this row's currency. Null means the profit was not entered.
+    contracted_profit: Mapped[Decimal | None] = mapped_column(Numeric(16, 2), nullable=True)
     funded_amount: Mapped[Decimal | None] = mapped_column(Numeric(16, 2), nullable=True)
     remaining_amount: Mapped[Decimal | None] = mapped_column(Numeric(16, 2), nullable=True)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="USD")

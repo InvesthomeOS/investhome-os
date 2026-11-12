@@ -30,6 +30,7 @@ import {
   type ProjectInput,
   type ProjectStats,
 } from '@/lib/api/projects';
+import { saveProjectPhases, type PhaseDraft } from '@/lib/api/project-phases';
 import { useProjectLabels } from '@/lib/i18n/project-labels';
 
 import { ProjectFormModal } from '../project-form-modal';
@@ -220,14 +221,15 @@ function ProjectsDsWorkspaceInner() {
     URL.revokeObjectURL(url);
   };
 
-  const handleSubmit = async (input: ProjectInput) => {
+  const handleSubmit = async (input: ProjectInput, phases: PhaseDraft[]) => {
     setSubmitting(true);
     setActionError(null);
     try {
-      if (formMode === 'edit' && editProject) {
-        await updateProject(editProject.id, input);
-      } else {
-        await createProject(input);
+      const saved = formMode === 'edit' && editProject
+        ? await updateProject(editProject.id, input)
+        : await createProject(input);
+      if (phases.length || formMode === 'edit') {
+        await saveProjectPhases(saved.id, phases);
       }
       setFormMode(null);
       setEditProject(null);
@@ -506,7 +508,7 @@ function ProjectsDsWorkspaceInner() {
                                 setMenuId((id) => (id === project.id ? null : project.id))
                               }
                             >
-                              ⋮
+                              ⋯
                             </button>
                             {menuId === project.id ? (
                               <div className="proj-ds__menu" role="menu">
@@ -702,7 +704,7 @@ function ProjectsDsWorkspaceInner() {
                                   openProject(project);
                                 }}
                               >
-                                ⋮
+                                ⋯
                               </button>
                             </td>
                           </tr>
@@ -918,8 +920,8 @@ function ProjectsDsWorkspaceInner() {
           setEditProject(null);
           setActionError(null);
         }}
-        onSubmit={(input) => {
-          void handleSubmit(input);
+        onSubmit={(input, phases) => {
+          void handleSubmit(input, phases);
         }}
       />
     </div>

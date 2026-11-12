@@ -132,8 +132,18 @@ export async function createTask(payload: TaskWritePayload): Promise<{ activity:
   return apiFetch('/crm/tasks', { method: 'POST', body: JSON.stringify(payload) });
 }
 
-export async function completeTask(id: string): Promise<{ activity: CrmActivityDetail }> {
-  return apiFetch(`/crm/tasks/${id}/complete`, { method: 'POST' });
+export async function completeTask(id: string, outcome?: string): Promise<{ activity: CrmActivityDetail }> {
+  return apiFetch(`/crm/tasks/${id}/complete`, {
+    method: 'POST',
+    body: JSON.stringify({ outcome: outcome || null }),
+  });
+}
+
+export async function rescheduleTask(id: string, due: string): Promise<{ activity: CrmActivityDetail }> {
+  return apiFetch(`/crm/tasks/${id}/reschedule`, {
+    method: 'POST',
+    body: JSON.stringify({ due_date: new Date(due).toISOString() }),
+  });
 }
 
 export async function reopenTask(id: string): Promise<{ activity: CrmActivityDetail }> {

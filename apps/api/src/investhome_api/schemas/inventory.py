@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from investhome_api.models.inventory import (
     AvailabilityStatus,
@@ -106,11 +106,31 @@ class FloorListResponse(BaseModel):
     pages: int
 
 
+def _unit_identifier(value: object) -> object:
+    """Keep the business unit identifier as text. Do not coerce letters away."""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        raise ValueError("unit identifier must be text")
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    text = str(value).strip()
+    if not text:
+        raise ValueError("unit identifier required")
+    return text
+
+
 class InventoryAssetBase(BaseModel):
     project_id: UUID
     building_id: UUID | None = None
     floor_id: UUID | None = None
+    phase_id: UUID | None = None
     display_id: str = Field(min_length=1, max_length=50)
+
+    @field_validator("display_id", mode="before")
+    @classmethod
+    def display_id_text(cls, value: object) -> object:
+        return _unit_identifier(value)
     legal_identifier: str | None = Field(default=None, max_length=100)
     asset_type: InventoryAssetType
     usage_type: UsageType
@@ -141,9 +161,18 @@ class InventoryAssetCreate(InventoryAssetBase):
 
 
 class InventoryAssetUpdate(BaseModel):
+    project_id: UUID | None = None
     building_id: UUID | None = None
     floor_id: UUID | None = None
+    phase_id: UUID | None = None
     display_id: str | None = Field(default=None, min_length=1, max_length=50)
+
+    @field_validator("display_id", mode="before")
+    @classmethod
+    def display_id_text(cls, value: object) -> object:
+        if value is None:
+            return None
+        return _unit_identifier(value)
     legal_identifier: str | None = Field(default=None, max_length=100)
     asset_type: InventoryAssetType | None = None
     usage_type: UsageType | None = None
@@ -172,6 +201,45 @@ class InventoryAssetResponse(InventoryAssetBase):
     created_at: datetime
     updated_at: datetime
     archived_at: datetime | None = None
+
+
+class ProjectPhaseCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    display_order: int = 0
+    active: bool = True
+    address_line: str | None = Field(default=None, max_length=255)
+    city: str | None = Field(default=None, max_length=120)
+    region: str | None = Field(default=None, max_length=80)
+    postal_code: str | None = Field(default=None, max_length=20)
+
+
+class ProjectPhaseUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    display_order: int | None = None
+    active: bool | None = None
+    address_line: str | None = Field(default=None, max_length=255)
+    city: str | None = Field(default=None, max_length=120)
+    region: str | None = Field(default=None, max_length=80)
+    postal_code: str | None = Field(default=None, max_length=20)
+
+
+class ProjectPhaseReorder(BaseModel):
+    phase_ids: list[UUID] = Field(min_length=1)
+
+
+class ProjectPhaseResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    project_id: UUID
+    name: str
+    display_order: int
+    active: bool
+    address_line: str | None = None
+    city: str | None = None
+    region: str | None = None
+    postal_code: str | None = None
+    unit_count: int = 0
 
 
 class InventoryAssetListResponse(BaseModel):

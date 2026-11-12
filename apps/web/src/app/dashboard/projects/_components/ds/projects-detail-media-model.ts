@@ -148,6 +148,8 @@ export type NearbyPlace = {
   kindEn: string;
   kindTr: string;
   distanceKm: number;
+  walkMin: number | null;
+  rating: number | null;
   lat: number | null;
   lng: number | null;
   address: string | null;

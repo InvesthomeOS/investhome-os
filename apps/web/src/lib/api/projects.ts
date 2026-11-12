@@ -122,6 +122,7 @@ export interface Project {
   project_type: ProjectType;
   development_type: DevelopmentType;
   project_status: ProjectStatus;
+  uses_phases?: boolean;
   priority: ProjectPriority;
   development_stage: DevelopmentStage | null;
   ownership_entity: string | null;
@@ -205,6 +206,7 @@ export interface ProjectInput {
   project_type?: ProjectType;
   development_type?: DevelopmentType;
   project_status?: ProjectStatus;
+  uses_phases?: boolean;
   priority?: ProjectPriority;
   development_stage?: DevelopmentStage | null;
   ownership_entity?: string | null;
@@ -860,6 +862,7 @@ export interface ProjectOverviewResponse {
 
 export interface ProjectFinancialsResponse {
   financial_access: boolean;
+  audience?: string;
   summary: Record<string, MetricValue> | null;
   budgets: Array<Record<string, unknown>>;
   capital: Array<Record<string, unknown>>;
@@ -1055,8 +1058,18 @@ export async function fetchProjectCampaigns(
   );
 }
 
-export async function fetchProjectFinancials(projectId: string): Promise<ProjectFinancialsResponse> {
-  return apiFetch<ProjectFinancialsResponse>(`/projects/${projectId}/financials`);
+export async function fetchProjectFinancials(
+  projectId: string,
+  audience: 'internal' | 'customer' = 'internal',
+  phaseId?: string,
+): Promise<ProjectFinancialsResponse> {
+  const params = new URLSearchParams();
+  if (audience === 'customer') params.set('audience', 'customer');
+  if (phaseId) params.set('phase_id', phaseId);
+  const query = params.toString();
+  return apiFetch<ProjectFinancialsResponse>(
+    `/projects/${projectId}/financials${query ? `?${query}` : ''}`,
+  );
 }
 
 export async function fetchProjectExecutiveFinance(
@@ -1085,6 +1098,7 @@ export async function fetchProjectUnits(
   projectId: string,
   params: {
     search?: string;
+    phase_id?: string;
     availability_status?: string;
     sales_status?: string;
     sales_market?: string;
@@ -1098,6 +1112,7 @@ export async function fetchProjectUnits(
 ): Promise<ProjectUnitsResponse> {
   const query = new URLSearchParams();
   if (params.search?.trim()) query.set('search', params.search.trim());
+  if (params.phase_id) query.set('phase_id', params.phase_id);
   if (params.availability_status) query.set('availability_status', params.availability_status);
   if (params.sales_status) query.set('sales_status', params.sales_status);
   if (params.sales_market) query.set('sales_market', params.sales_market);
@@ -1119,8 +1134,12 @@ export async function fetchProjectLeasing(projectId: string): Promise<ProjectLea
   return apiFetch<ProjectLeasingResponse>(`/projects/${projectId}/leasing`);
 }
 
-export async function fetchProjectInvestors(projectId: string): Promise<ProjectInvestorsResponse> {
-  return apiFetch<ProjectInvestorsResponse>(`/projects/${projectId}/investors`);
+export async function fetchProjectInvestors(
+  projectId: string,
+  phaseId?: string,
+): Promise<ProjectInvestorsResponse> {
+  const query = phaseId ? `?phase_id=${encodeURIComponent(phaseId)}` : '';
+  return apiFetch<ProjectInvestorsResponse>(`/projects/${projectId}/investors${query}`);
 }
 
 export interface LocationPlace {

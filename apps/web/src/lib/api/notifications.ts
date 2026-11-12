@@ -64,20 +64,18 @@ export interface NotificationSummary {
   unread: number;
 }
 
-export async function fetchNotifications(sync = true) {
-  return apiFetch<NotificationListResponse>(
-    `/notifications?sync=${sync ? 'true' : 'false'}&page_size=50`,
-  );
+export async function fetchNotifications() {
+  return apiFetch<NotificationListResponse>('/notifications?page_size=50');
 }
 
-export async function fetchNotificationUnreadCount(sync = true) {
+export async function fetchNotificationUnreadCount() {
   return apiFetch<{ unread_count: number; highest_priority: NotificationPriority | null }>(
-    `/notifications/unread-count?sync=${sync ? 'true' : 'false'}`,
+    '/notifications/unread-count',
   );
 }
 
-export async function fetchNotificationSummary(sync = true) {
-  return apiFetch<NotificationSummary>(`/notifications/summary?sync=${sync ? 'true' : 'false'}`);
+export async function fetchNotificationSummary() {
+  return apiFetch<NotificationSummary>('/notifications/summary');
 }
 
 export async function markNotificationRead(notificationId: string) {
@@ -88,8 +86,40 @@ export async function markAllNotificationsRead() {
   return apiFetch<{ updated: number }>('/notifications/read-all', { method: 'POST' });
 }
 
+export type NotificationPreference = {
+  event_key: string;
+  in_app: boolean;
+  email: boolean;
+};
+
+export async function fetchNotificationPreferences() {
+  return apiFetch<{ items: NotificationPreference[] }>('/notifications/preferences');
+}
+
+export async function saveNotificationPreferences(items: NotificationPreference[]) {
+  return apiFetch<{ items: NotificationPreference[] }>('/notifications/preferences', {
+    method: 'PUT',
+    body: JSON.stringify({ items }),
+  });
+}
+
 export async function dismissNotification(notificationId: string) {
   return apiFetch<NotificationItem>(`/notifications/${notificationId}/dismiss`, { method: 'POST' });
+}
+
+export async function dismissAllNotifications() {
+  return apiFetch<{ updated: number }>('/notifications/dismiss-all', { method: 'POST' });
+}
+
+export async function fetchPushConfig() {
+  return apiFetch<{ configured: boolean; public_key: string | null }>('/notifications/push-config');
+}
+
+export async function savePushSubscription(subscription: PushSubscriptionJSON) {
+  return apiFetch<{ saved: boolean }>('/notifications/push-subscriptions', {
+    method: 'POST',
+    body: JSON.stringify(subscription),
+  });
 }
 
 export function notificationRecordHref(item: NotificationItem): Route | null {

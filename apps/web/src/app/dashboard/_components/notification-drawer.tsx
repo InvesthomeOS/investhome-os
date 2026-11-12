@@ -13,6 +13,7 @@ import {
 } from '@/lib/api/notifications';
 import { useNotificationLabels } from '@/lib/i18n/notification-labels';
 import { useNotifications } from '@/lib/notifications/notification-context';
+import { lockPageScroll } from '@/lib/ui/scroll-lock.mjs';
 
 const PRIORITY_CLASS: Record<NotificationPriority, string> = {
   critical: 'notification-priority--critical',
@@ -37,6 +38,7 @@ function NotificationRow({
   const href = notificationRecordHref(item);
   const isUnread = item.status === 'unread';
   const locale = useLocale();
+  const related = item.related_label || meta.related_label || meta.name || meta.project || '';
 
   const content = (
     <>
@@ -53,7 +55,7 @@ function NotificationRow({
       </div>
       <strong>{getTitle(item.title_key, meta)}</strong>
       <p>{getMessage(item.message_key, meta)}</p>
-      {item.related_label && <span className="notification-item__related">{item.related_label}</span>}
+      {related ? <span className="notification-item__related">{related}</span> : null}
     </>
   );
 
@@ -67,19 +69,19 @@ function NotificationRow({
         <div className="notification-item__body">{content}</div>
       )}
       <div className="notification-item__actions">
-        {isUnread && (
+        {href ? (
+          <Link href={href} className="notification-item__open" onClick={() => isUnread && onMarkRead(item.id)}>
+            {t('actions.openRecord')}
+          </Link>
+        ) : null}
+        {isUnread ? (
           <button type="button" onClick={() => void onMarkRead(item.id)}>
             {t('actions.markRead')}
           </button>
-        )}
+        ) : null}
         <button type="button" onClick={() => void onDismiss(item.id)}>
           {t('actions.dismiss')}
         </button>
-        {href && (
-          <Link href={href} className="notification-item__open">
-            {t('actions.openRecord')}
-          </Link>
-        )}
       </div>
     </li>
   );
@@ -98,6 +100,7 @@ export function NotificationDrawer() {
     markRead,
     markAllRead,
     dismiss,
+    dismissAll,
     unreadCount,
   } = useNotifications();
 
@@ -110,11 +113,10 @@ export function NotificationDrawer() {
       }
     };
     document.addEventListener('keydown', onKeyDown);
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const unlock = lockPageScroll();
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = previousOverflow;
+      unlock();
     };
   }, [drawerOpen, closeDrawer]);
 
@@ -131,6 +133,7 @@ export function NotificationDrawer() {
         aria-labelledby="notification-drawer-title"
         onClick={(event) => event.stopPropagation()}
       >
+        <div className="notification-drawer__scroll">
         <header className="notification-drawer__header">
           <div>
             <p className="dashboard__eyebrow">{t('drawerEyebrow')}</p>
@@ -145,18 +148,33 @@ export function NotificationDrawer() {
         <div className="notification-drawer__toolbar">
           <button
             type="button"
-            className="leads__button leads__button--secondary"
+            className="notification-item__open"
             disabled={unreadCount === 0}
             onClick={() => void markAllRead()}
           >
             {t('actions.markAllRead')}
           </button>
+          <button
+            type="button"
+            className="notification-item__open"
+            disabled={items.length === 0}
+            onClick={() => {
+              const confirmed = window.confirm(
+                locale === 'tr'
+                  ? 'Bildirimler gelen kutusundan kaldırılsın mı? Kayıtlar silinmez.'
+                  : 'Clear these notifications from the inbox? Records are not deleted.',
+              );
+              if (confirmed) void dismissAll();
+            }}
+          >
+            {t('actions.clearAll')}
+          </button>
         </div>
 
-        {loading && <p className="leads__state">{tCommon('loading')}</p>}
+        {loading && items.length === 0 && <p className="leads__state">{tCommon('loading')}</p>}
         {!loading && items.length === 0 && <p className="leads__state">{t('empty')}</p>}
 
-        {!loading &&
+        {items.length > 0 &&
           (['today', 'yesterday', 'earlier'] as const).map((group) =>
             groups[group].length > 0 ? (
               <section key={group} className="notification-group">
@@ -174,6 +192,7 @@ export function NotificationDrawer() {
               </section>
             ) : null,
           )}
+        </div>
       </aside>
     </div>
   );

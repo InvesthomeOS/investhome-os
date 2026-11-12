@@ -1,4 +1,5 @@
 import type { CrmAgreementSummary } from '@/workspaces/crm/api/agreements';
+import { formatAgreementAmount } from '@/workspaces/crm/money';
 
 export const PROJECT_SELECTOR = [
   { id: '1812_h_pl', label: '1812 H Place' },
@@ -71,11 +72,13 @@ export function displayDate(value?: string | null): string {
 }
 
 export function displayAmount(row: CrmAgreementSummary): string | null {
-  const label = (row.amount_label || '').trim();
-  const raw = (row.investment_amount || '').trim();
+  if (row.currency) {
+    const formatted = formatAgreementAmount(row.investment_amount || row.amount_label, row.currency);
+    if (formatted) return formatted;
+  }
+  const label = (row.amount_label || '').trim().replace(/\s*USD$/i, '').trim();
   if (label) return label;
-  if (raw) return raw;
-  return null;
+  return formatAgreementAmount(row.investment_amount, row.currency);
 }
 
 export function paymentLabel(value?: string | null): string | null {

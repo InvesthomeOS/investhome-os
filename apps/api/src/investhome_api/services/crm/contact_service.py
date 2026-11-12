@@ -11,7 +11,7 @@ from math import ceil
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import String, cast, func, not_, or_, select
+from sqlalchemy import String, and_, cast, func, not_, or_, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session, selectinload
 
@@ -723,6 +723,20 @@ def serialize_contact_detail(
                     if agreement.project_group == BitrixProjectGroup.REIT.value
                     else agreement.unit_number
                 ),
+                phase_name=(
+                    None
+                    if agreement.project_group == BitrixProjectGroup.REIT.value or not getattr(agreement, "phase_id", None)
+                    else (
+                        db.get(__import__("investhome_api.models.inventory", fromlist=["ProjectPhase"]).ProjectPhase, agreement.phase_id).name
+                        if db.get(__import__("investhome_api.models.inventory", fromlist=["ProjectPhase"]).ProjectPhase, agreement.phase_id)
+                        else None
+                    )
+                ),
+                unit_display=(
+                    None
+                    if agreement.project_group == BitrixProjectGroup.REIT.value or not getattr(agreement, "inventory_asset_id", None)
+                    else __import__("investhome_api.services.crm.agreement_service", fromlist=["agreement_unit_display"]).agreement_unit_display(db, agreement)
+                ),
                 investment_amount=(
                     agreement.investment_amount
                     if agreement.project_group == BitrixProjectGroup.REIT.value
@@ -1137,6 +1151,8 @@ def list_crm_contacts(
     category: str | None = None,
     junk_reason: str | None = None,
     agreement_project: str | None = None,
+    project_id: UUID | None = None,
+    phase_id: UUID | None = None,
     bitrix_list: str | None = None,
     flag: str | None = None,
     has_investments: bool | None = None,
@@ -1163,6 +1179,23 @@ def list_crm_contacts(
             CrmContact.status == CrmContactStatus.ARCHIVED,
             func.lower(CrmContact.source) == "bitrix",
             cast(CrmContact.metadata_json, String).like('%"junk"%'),
+        )
+
+    elif bitrix_list == "agency_customers":
+        original_stage = CrmContact.metadata_json["bitrix_import"]["original_asama"].as_string()
+        live_stage = CrmContact.metadata_json["bitrix_live"]["live_stage_or_status"].as_string()
+        agency_flag = func.lower(
+            func.coalesce(CrmContact.metadata_json["crm"]["agency_customer"].as_string(), "")
+        )
+        query = query.where(
+            CrmContact.status == CrmContactStatus.ACTIVE,
+            or_(
+                and_(
+                    original_stage == "Acenta Müşterileri",
+                    ~func.coalesce(live_stage, "").ilike("%CONVERTED%"),
+                ),
+                agency_flag == "true",
+            ),
         )
 
     if not include_archived:
@@ -1246,27 +1279,23 @@ def list_crm_contacts(
         CrmContact.id.in_(agent_ids),
     )
     owned_investor_ids = select(CrmAgreement.contact_id).where(~detached_relationship_clause())
-    if category == "investor":
-        owned = select(CrmAgreement.contact_id).where(~detached_relationship_clause())
-        if agreement_project:
-            owned = owned.where(CrmAgreement.project_group == agreement_project)
-        query = query.where(CrmContact.id.in_(owned))
-    elif agreement_project:
-        agreement_ids = select(CrmAgreement.contact_id).where(
-            CrmAgreement.project_group == agreement_project,
-            ~detached_relationship_clause(),
+    project_filter = bool(agreement_project) or project_id is not None or phase_id is not None
+    if project_filter:
+        from investhome_api.services.crm.person_project_membership import person_project_contact_ids
+
+        member_ids = person_project_contact_ids(
+            db,
+            project_id=project_id,
+            project_group=agreement_project,
+            phase_id=phase_id,
+            include_leads=category != "investor",
         )
-        participant_ids = (
-            select(CrmAgreementParticipant.contact_id)
-            .join(CrmAgreement, CrmAgreement.id == CrmAgreementParticipant.agreement_id)
-            .where(
-                CrmAgreement.project_group == agreement_project,
-                ~detached_relationship_clause(),
-            )
-        )
-        query = query.where(
-            or_(CrmContact.id.in_(agreement_ids), CrmContact.id.in_(participant_ids))
-        )
+        if member_ids:
+            query = query.where(CrmContact.id.in_(member_ids))
+        else:
+            query = query.where(CrmContact.id.is_(None))
+    elif category == "investor":
+        query = query.where(CrmContact.id.in_(owned_investor_ids))
     if role_group == "agent" or category == "agent":
         query = query.where(agent_condition)
     elif role_group == "other":

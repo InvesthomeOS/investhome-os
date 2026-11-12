@@ -23,6 +23,15 @@ export function displayDate(value?: string | null): string {
   return date.toLocaleDateString('tr-TR');
 }
 
+const STAGE_DISPLAY: Record<string, string> = {
+  'Acenta Adayı': 'Acente Adayı',
+  'Sözleşmeli Acenta': 'Sözleşmeli Acente',
+};
+
+export function displayAgentStage(stage: string): string {
+  return STAGE_DISPLAY[stage] || stage.replace(/Acenta/g, 'Acente').replace(/acenta/g, 'acente');
+}
+
 export function normalizeAgentStage(agent: CrmContactSummary): string {
   const raw = (agent.bitrix_original_stage || '').trim();
   if (raw) {

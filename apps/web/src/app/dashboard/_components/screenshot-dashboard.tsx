@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
 import { useAuth } from '@/lib/auth/auth-context';
 import { formatGreeting, greetingName, greetingPeriod, resolveGreetingTimezone } from '@/lib/auth/greeting';
+import { formatOsDate, OS_TIME_ZONE } from '@/lib/datetime/os-datetime.mjs';
 
 import { useScreenshotDashboardInteractions } from './screenshot-dashboard-interactions';
 import { useScreenshotDashboardPreferences } from './screenshot-dashboard-preferences';
@@ -90,15 +91,12 @@ export function ScreenshotDashboard() {
   const { openAi } = useScreenshotDashboardInteractions();
   const { density, formatUsdCurrency } = useScreenshotDashboardPreferences();
   const dateLocale = locale === 'tr' ? 'tr-TR' : 'en-US';
-  const dateValue = new Date(2025, 4, 26);
-  const dashboardDate = new Intl.DateTimeFormat(dateLocale, {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
+  const dateValue = new Date();
+  const dashboardDate = formatOsDate(dateValue, locale);
+  const dashboardWeekday = new Intl.DateTimeFormat(dateLocale, {
+    timeZone: OS_TIME_ZONE,
+    weekday: 'long',
   }).format(dateValue);
-  const dashboardWeekday = new Intl.DateTimeFormat(dateLocale, { weekday: 'long' }).format(
-    dateValue,
-  );
   const browserZone =
     typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : null;
   const greetingZone = resolveGreetingTimezone(user?.timezone, browserZone);

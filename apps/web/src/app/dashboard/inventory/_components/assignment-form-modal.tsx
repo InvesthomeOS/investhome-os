@@ -28,7 +28,10 @@ export function AssignmentFormModal({
   const isChild = isParkingAsset(asset.asset_type) || isStorageAsset(asset.asset_type);
 
   const [mode, setMode] = useState<'assign' | 'unassign'>(currentParentId ? 'assign' : 'assign');
-  const [parentId, setParentId] = useState(currentParentId ?? parentUnits[0]?.id ?? '');
+  const parents = asset.phase_id
+    ? parentUnits.filter((unit) => unit.phase_id === asset.phase_id)
+    : parentUnits.filter((unit) => !unit.phase_id);
+  const [parentId, setParentId] = useState(currentParentId ?? parents[0]?.id ?? '');
   const [effectiveDate, setEffectiveDate] = useState(today);
   const [reason, setReason] = useState('');
   const [price, setPrice] = useState('');
@@ -93,7 +96,7 @@ export function AssignmentFormModal({
             <label>
               <span>{t('fields.parentUnit')}</span>
               <select value={parentId} onChange={(e) => setParentId(e.target.value)}>
-                {parentUnits.map((unit) => (
+                {parents.map((unit) => (
                   <option key={unit.id} value={unit.id}>
                     {unit.display_id} ({unit.system_code})
                   </option>

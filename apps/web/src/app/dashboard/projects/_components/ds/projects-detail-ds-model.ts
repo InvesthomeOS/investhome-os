@@ -13,6 +13,7 @@ import {
 export const PROJECT_DETAIL_NAV_TABS = [
   'overview',
   'units',
+  'phases',
   'investors',
   'financial',
   'construction',

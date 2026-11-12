@@ -200,6 +200,8 @@ export function ProjectsDetailLocation({
                   <span>
                     {t(`location.categories.${place.kindEn}`)} ·{' '}
                     {t('amenities.distance', { km: place.distanceKm.toFixed(1) })}
+                    {place.walkMin != null ? ` · ${t('amenities.walk', { min: place.walkMin })}` : ''}
+                    {place.rating != null ? ` · ${t('amenities.rating', { rating: place.rating.toFixed(1) })}` : ''}
                   </span>
                   {place.address ? <span>{place.address}</span> : null}
                 </li>

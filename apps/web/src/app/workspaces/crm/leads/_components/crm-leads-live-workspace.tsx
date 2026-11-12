@@ -10,6 +10,10 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { Button, ErrorState, Input, LoadingState, Select, TextArea } from '@investhome/ui';
 
 import { IhIcon, type IhIconName } from '@/components/icons/ih-icons';
+import { fetchUsers, hasPermission } from '@/lib/api/auth';
+import { fetchInventoryAssets } from '@/lib/api/inventory';
+import { fetchProjectPhases } from '@/lib/api/project-phases';
+import { fetchProjects } from '@/lib/api/projects';
 import { canUpdateCrm } from '@/lib/crm/crm-permissions';
 import { useDebouncedQueryParam, useListQueryPatch } from '@/lib/crm/list-query';
 import { confirmDiscardUnsaved, saveFailedMessage } from '@/lib/crm/unsaved-form';
@@ -17,9 +21,16 @@ import { useCrmAccess } from '@/lib/crm/use-crm-access';
 import { useContactCard } from '@/workspaces/crm/contact-card/contact-card-context';
 import { EmailSendComposer } from '@/workspaces/crm/contact-card/email-send-composer';
 import { WhatsAppSendComposer } from '@/workspaces/crm/contact-card/whatsapp-send-composer';
+import { fetchMembershipProjects } from '@/workspaces/crm/api/contacts';
+import { phaseFieldVisible, unitIdentifier } from '@/workspaces/crm/project-phase-unit.mjs';
+import { lockPageScroll } from '@/lib/ui/scroll-lock.mjs';
+import { formatOsDateTime } from '@/lib/datetime/os-datetime.mjs';
+import { OsOverflowMenu } from '@/components/shell/os-overflow-menu';
+import { createNote } from '@/workspaces/crm/api/activities';
 import {
   CRM_LEAD_JUNK_REASONS,
   CRM_LEAD_STAGES,
+  archiveCrmLead,
   convertCrmLead,
   createCrmLead,
   CrmLeadConflictError,
@@ -42,13 +53,16 @@ import {
 } from '@/workspaces/crm/api/crm-leads';
 import { createTask } from '@/workspaces/crm/api/activities';
 import { CrmJunkReasonDialog } from '@/workspaces/crm/junk-reason-dialog';
+import { CrmContactPicker } from '@/workspaces/crm/crm-person-fields';
+import { CRM_SOURCE_OPTIONS, crmSourceChoices, crmSourceLabel } from '@/workspaces/crm/crm-source-options';
 
 type ViewMode = 'kanban' | 'list';
 type DrawerMode = 'create' | 'detail' | 'edit' | 'convert';
+type DetailTab = 'general' | 'tasks' | 'notes' | 'history';
 type LeadView = CrmLeadItem & { metadata?: Record<string, unknown> | null };
 
 const STAGES = CRM_LEAD_STAGES;
-const CREATE_SOURCES = ['instagram', 'facebook', 'website', 'whatsapp', 'referral', 'manual', 'other'] as const;
+const CREATE_SOURCES = CRM_SOURCE_OPTIONS.map((item) => item.value);
 
 const COPY = {
   tr: {
@@ -64,6 +78,8 @@ const COPY = {
     searchPh: 'Ad, telefon, e-posta ara...',
     stage: 'Aşama',
     source: 'Kaynak',
+    sourceField: 'Geliş Kaynağı',
+    unassigned: 'Atanmamış',
     project: 'Proje',
     interestedProject: 'İlgilendiği Proje',
     owner: 'Sorumlu',
@@ -95,11 +111,23 @@ const COPY = {
     email: 'E-posta',
     contact: 'Telefon / E-posta',
     comments: 'Yorumlar',
+    notesField: 'Notlar',
     referrer: 'Yönlendiren',
     lastActivity: 'Son Aktivite',
     nextTask: 'Sonraki Görev',
     created: 'Oluşturulma',
     history: 'İletişim geçmişi',
+    generalTab: 'Genel Bilgiler',
+    tasksTab: 'Görevler',
+    commentsTab: 'Notlar',
+    notesTab: 'Notlar',
+    addNote: 'Not ekle',
+    notePlaceholder: 'Not',
+    noteSaved: 'Not eklendi',
+    historyTab: 'İletişim Geçmişi',
+    emailAction: 'E-posta',
+    whatsappAction: 'WhatsApp',
+    reusePerson: 'Mevcut kişiyle devam et',
     actions: 'İşlem',
     open: 'Aç',
     convert: 'Satışa Döndü',
@@ -131,6 +159,7 @@ const COPY = {
     ingestUnmatched: 'Eşleşmeyen kaynak',
     ingestFailed: 'Kaynak kaydı başarısız',
     budget: 'Yatırım Bütçesi',
+    purchaseBudget: 'Alım Bütçesi',
     budgetPh: '500,000',
     addTask: 'Görev Ekle',
     taskName: 'Görev Adı',
@@ -145,6 +174,9 @@ const COPY = {
     taskNameRequired: 'Görev adı gerekli',
     taskDateRequired: 'Tarih gerekli',
     taskTimeRequired: 'Saat gerekli',
+    taskReminder: 'Hatırlatma',
+    taskReminder10: '10 dakika önce',
+    taskReminderNone: 'Hatırlatma yok',
   },
   en: {
     title: 'Pipeline',
@@ -159,6 +191,8 @@ const COPY = {
     searchPh: 'Search name, phone, email...',
     stage: 'Stage',
     source: 'Source',
+    sourceField: 'Source',
+    unassigned: 'Unassigned',
     project: 'Project',
     interestedProject: 'Interested project',
     owner: 'Owner',
@@ -190,11 +224,23 @@ const COPY = {
     email: 'Email',
     contact: 'Phone / Email',
     comments: 'Comments',
+    notesField: 'Notes',
     referrer: 'Referred by',
     lastActivity: 'Last activity',
     nextTask: 'Next task',
     created: 'Created',
     history: 'Communication history',
+    generalTab: 'General',
+    tasksTab: 'Tasks',
+    commentsTab: 'Notes',
+    notesTab: 'Notes',
+    addNote: 'Add note',
+    notePlaceholder: 'Note',
+    noteSaved: 'Note added',
+    historyTab: 'Communication history',
+    emailAction: 'Email',
+    whatsappAction: 'WhatsApp',
+    reusePerson: 'Continue with existing person',
     actions: 'Action',
     open: 'Open',
     convert: 'Converted',
@@ -226,6 +272,7 @@ const COPY = {
     ingestUnmatched: 'Unmatched source',
     ingestFailed: 'Source intake failed',
     budget: 'Investment Budget',
+    purchaseBudget: 'Purchase budget',
     budgetPh: '500,000',
     addTask: 'Add Task',
     taskName: 'Task Name',
@@ -240,6 +287,9 @@ const COPY = {
     taskNameRequired: 'Task name is required',
     taskDateRequired: 'Date is required',
     taskTimeRequired: 'Time is required',
+    taskReminder: 'Reminder',
+    taskReminder10: '10 minutes before',
+    taskReminderNone: 'No reminder',
   },
 };
 
@@ -252,26 +302,40 @@ const SOURCE_LABEL: Record<string, { tr: string; en: string }> = {
   instagram: { tr: 'Instagram Lead', en: 'Instagram Lead' },
   whatsapp: { tr: 'WhatsApp', en: 'WhatsApp' },
   wa: { tr: 'WhatsApp', en: 'WhatsApp' },
-  referral: { tr: 'Acenta', en: 'Agency' },
-  agency: { tr: 'Acenta', en: 'Agency' },
-  agent: { tr: 'Acenta', en: 'Agency' },
-  acenta: { tr: 'Acenta', en: 'Agency' },
-  acente: { tr: 'Acenta', en: 'Agency' },
+  referral: { tr: 'Acente', en: 'Agency' },
+  agency: { tr: 'Acente', en: 'Agency' },
+  agent: { tr: 'Acente', en: 'Agency' },
+  acenta: { tr: 'Acente', en: 'Agency' },
+  acente: { tr: 'Acente', en: 'Agency' },
   google: { tr: 'Google Ads', en: 'Google Ads' },
   other: { tr: 'Diğer', en: 'Other' },
 };
 
-const EMPTY_TASK_FORM = { title: '', date: '', time: '' };
+const EMPTY_TASK_FORM = { title: '', date: '', time: '', reminder: '10' };
 const TASK_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TASK_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const EMPTY_FORM: CrmLeadWrite = {
   full_name: '',
+  first_name: '',
+  last_name: '',
   phone: '',
   email: '',
+  contact_id: '',
+  address_line1: '',
+  city: '',
+  state_province: '',
+  country: '',
+  language: '',
+  organization_name: '',
+  job_title: '',
+  next_follow_up_at: '',
   source: 'manual',
   campaign: '',
   project: '',
+  project_id: '',
+  phase_id: '',
+  inventory_asset_id: '',
   owner_user_id: '',
   notes: '',
   stage: 'yeni',
@@ -281,15 +345,7 @@ const EMPTY_FORM: CrmLeadWrite = {
 
 function formatWhen(value: string | null | undefined, locale: string): string {
   if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return new Intl.DateTimeFormat(locale === 'tr' ? 'tr-TR' : 'en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
+  return formatOsDateTime(value, locale);
 }
 
 function toIstanbulDuePayload(date: string, time: string): string {
@@ -354,7 +410,7 @@ function sourceLabel(value: string | null | undefined, locale: 'tr' | 'en'): str
   if (/acenta|acente|agency|agent|referral/.test(key)) return sourceLocaleLabel('referral', locale);
   if (/manual|manuel/.test(key)) return sourceLocaleLabel('manual', locale);
   if (/^[a-z0-9_]+$/.test(key)) return sourceLocaleLabel('other', locale);
-  return value.trim();
+  return value.trim().replace(/Acenta/g, 'Acente').replace(/acenta/g, 'acente');
 }
 
 function sourceTone(value: string | null | undefined): string {
@@ -454,8 +510,22 @@ export function CrmLeadsLiveWorkspace() {
   const { canRead, canCreate, authLoading, user, canManageTasks, has } = useCrmAccess();
   const canSendEmail = has('send_communications');
   const canUpdate = canUpdateCrm(user);
+  const canArchive = Boolean(user && hasPermission(user, 'leads', 'archive'));
   const canAddTask = canManageTasks;
   const queryClient = useQueryClient();
+  const archiveMutation = useMutation({
+    mutationFn: (id: string) => archiveCrmLead(id),
+    onSuccess: async () => {
+      setSelectedId(null);
+      setDrawer(null);
+      await queryClient.invalidateQueries({ queryKey: ['crm-leads'] });
+      setToast(locale === 'tr' ? 'Pipeline kaydı kaldırıldı.' : 'Pipeline record removed.');
+    },
+    onError: () => {
+      setFormError(locale === 'tr' ? 'Pipeline kaydı kaldırılamadı.' : 'Pipeline record could not be removed.');
+    },
+  });
+
   const { openContact } = useContactCard();
 
   const searchParams = useSearchParams();
@@ -467,6 +537,7 @@ export function CrmLeadsLiveWorkspace() {
   const stage = searchParams.get('stage') ?? '';
   const source = searchParams.get('source') ?? '';
   const project = searchParams.get('project') ?? '';
+  const phaseFilter = searchParams.get('phase') ?? '';
   const ownerId = searchParams.get('owner') ?? '';
   const dateFrom = searchParams.get('from') ?? '';
   const dateTo = searchParams.get('to') ?? '';
@@ -474,7 +545,8 @@ export function CrmLeadsLiveWorkspace() {
   const junkReason = searchParams.get('junk') ?? '';
   const page = Math.max(1, Number(searchParams.get('page') || '1') || 1);
   const setSource = (value: string) => patchQuery({ source: value, page: null });
-  const setProject = (value: string) => patchQuery({ project: value, page: null });
+  const setProject = (value: string) => patchQuery({ project: value, phase: null, page: null });
+  const setPhaseFilter = (value: string) => patchQuery({ phase: value, page: null });
   const setOwnerId = (value: string) => patchQuery({ owner: value, page: null });
   const setDateFrom = (value: string) => patchQuery({ from: value, page: null });
   const setDateTo = (value: string) => patchQuery({ to: value, page: null });
@@ -482,14 +554,71 @@ export function CrmLeadsLiveWorkspace() {
   const setJunkReason = (value: string) => patchQuery({ junk: value, page: null });
   const [junkPending, setJunkPending] = useState<LeadView | null>(null);
   const [drawer, setDrawer] = useState<DrawerMode | null>(null);
+  const [detailTab, setDetailTab] = useState<DetailTab>('general');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<CrmLeadWrite>(EMPTY_FORM);
+  const [projectSearch, setProjectSearch] = useState('');
+  const leadFormOpen = drawer === 'create' || drawer === 'edit';
+  const activeUsersQuery = useQuery({
+    queryKey: ['crm', 'active-users'],
+    queryFn: () => fetchUsers({ status: 'active' }),
+    enabled: leadFormOpen,
+  });
+  const projectsQuery = useQuery({
+    queryKey: ['crm-lead-projects', projectSearch],
+    queryFn: () => fetchProjects({
+      search: projectSearch.trim() || undefined,
+      page: 1,
+      page_size: 100,
+      sort_by: 'project_name',
+      sort_order: 'asc',
+    }),
+    enabled: leadFormOpen,
+  });
+  const leadPhasesQuery = useQuery({
+    queryKey: ['crm-lead-form-phases', form.project_id],
+    queryFn: () => fetchProjectPhases(form.project_id || ''),
+    enabled: leadFormOpen && Boolean(form.project_id),
+  });
+  const selectedLeadProject = (projectsQuery.data?.items ?? []).find((item) => item.id === form.project_id);
+  const leadUsesPhases = Boolean(selectedLeadProject?.uses_phases);
+  const leadPhaseReady = leadUsesPhases && phaseFieldVisible(leadPhasesQuery.data);
+  const leadUnitsQuery = useQuery({
+    queryKey: ['crm-lead-form-units', form.project_id, form.phase_id, leadUsesPhases, leadPhasesQuery.data?.length],
+    queryFn: () =>
+      fetchInventoryAssets({
+        project_id: form.project_id || undefined,
+        phase_id: leadUsesPhases ? form.phase_id || undefined : undefined,
+        page: 1,
+        page_size: 100,
+      }),
+    enabled:
+      leadFormOpen &&
+      Boolean(form.project_id) &&
+      (!leadUsesPhases || Boolean(form.phase_id)),
+  });
+  const membershipProjectsQuery = useQuery({
+    queryKey: ['crm-membership-projects'],
+    queryFn: fetchMembershipProjects,
+    enabled: canRead && !authLoading,
+  });
+  const membershipProjects = useMemo(() => {
+    const seen = new Set<string>();
+    return (membershipProjectsQuery.data ?? []).filter((item) => {
+      if (!item.project_id || seen.has(item.project_id)) return false;
+      seen.add(item.project_id);
+      return true;
+    });
+  }, [membershipProjectsQuery.data]);
+  const selectedMembership = membershipProjects.find((item) => item.project_id === project);
+  const filterPhases = (selectedMembership?.phases ?? []).filter((item) => item.active);
   const [formBaseline, setFormBaseline] = useState<CrmLeadWrite>(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
   const [conflict, setConflict] = useState<CrmLeadConflictError | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
+  const [noteDraft, setNoteDraft] = useState('');
   const [taskForm, setTaskForm] = useState(EMPTY_TASK_FORM);
   const [taskFormError, setTaskFormError] = useState<string | null>(null);
 
@@ -499,13 +628,15 @@ export function CrmLeadsLiveWorkspace() {
       stage: stage || undefined,
       source: source || undefined,
       project: project || undefined,
+      phase_id: phaseFilter || undefined,
       owner_id: ownerId || undefined,
       date_from: dateFrom ? `${dateFrom}T00:00:00Z` : undefined,
       date_to: dateTo ? `${dateTo}T23:59:59Z` : undefined,
       ingest_status: ingestStatus || undefined,
       junk_reason: junkReason || undefined,
+      surface: 'pipeline' as const,
     }),
-    [search, stage, source, project, ownerId, dateFrom, dateTo, ingestStatus, junkReason],
+    [search, stage, source, project, phaseFilter, ownerId, dateFrom, dateTo, ingestStatus, junkReason],
   );
 
   const listQuery = useQuery({
@@ -533,6 +664,15 @@ export function CrmLeadsLiveWorkspace() {
     searchPage.current = search;
     patchQuery({ page: null });
   }, [patchQuery, search]);
+
+  useEffect(() => {
+    if (!drawer) return undefined;
+    return lockPageScroll();
+  }, [drawer]);
+
+  useEffect(() => {
+    setDetailTab('general');
+  }, [selectedId]);
 
   const detailQuery = useQuery({
     queryKey: ['crm-lead', selectedId],
@@ -569,7 +709,8 @@ export function CrmLeadsLiveWorkspace() {
         setConflict(error);
         return;
       }
-      setFormError(saveFailedMessage(locale === 'tr'));
+      const message = error instanceof Error ? error.message : '';
+      setFormError(message && !message.startsWith('Request failed') ? message : saveFailedMessage(locale === 'tr'));
     },
   });
 
@@ -581,8 +722,9 @@ export function CrmLeadsLiveWorkspace() {
       await invalidate();
       showToast(t.updatedOk);
     },
-    onError: () => {
-      setFormError(saveFailedMessage(locale === 'tr'));
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : '';
+      setFormError(message && !message.startsWith('Request failed') ? message : saveFailedMessage(locale === 'tr'));
     },
   });
 
@@ -663,6 +805,7 @@ export function CrmLeadsLiveWorkspace() {
         due_time: taskForm.time,
         due_date: toIstanbulDuePayload(taskForm.date, taskForm.time),
         timezone: 'Europe/Istanbul',
+        ...(taskForm.reminder === 'none' ? { reminders: [] } : {}),
       });
     },
     onSuccess: async () => {
@@ -674,6 +817,29 @@ export function CrmLeadsLiveWorkspace() {
     },
     onError: () => {
       setTaskFormError(saveFailedMessage(locale === 'tr'));
+    },
+  });
+
+  const noteMutation = useMutation({
+    mutationFn: async () => {
+      const body = noteDraft.trim();
+      const contactId = selected?.contact_id || selected?.converted_contact_id;
+      if (!body || !contactId) throw new Error(t.save);
+      return createNote({
+        contact_id: contactId,
+        entity_type: 'contact',
+        entity_id: contactId,
+        description: body,
+        title: body.split('\n')[0]?.slice(0, 120),
+      });
+    },
+    onSuccess: async () => {
+      setNoteDraft('');
+      await invalidate();
+      showToast(t.noteSaved);
+    },
+    onError: () => {
+      showToast(saveFailedMessage(locale === 'tr'));
     },
   });
 
@@ -699,9 +865,10 @@ export function CrmLeadsLiveWorkspace() {
   };
 
   const openCreate = (nextStage?: CrmLeadStage) => {
-    const next = { ...EMPTY_FORM, stage: nextStage || 'yeni' };
+    const next = { ...EMPTY_FORM, stage: nextStage || 'yeni', owner_user_id: user?.id || '' };
     setForm(next);
     setFormBaseline(next);
+    setProjectSearch('');
     setFormError(null);
     setConflict(null);
     setSelectedId(null);
@@ -719,32 +886,29 @@ export function CrmLeadsLiveWorkspace() {
 
   const openEdit = (item: LeadView) => {
     setSelectedId(item.id);
-    setForm({
+    const nameParts = (item.full_name || '').trim().split(/\s+/);
+    const nextForm: CrmLeadWrite = {
       full_name: item.full_name,
+      first_name: nameParts[0] || '',
+      last_name: nameParts.slice(1).join(' '),
       phone: item.phone ?? '',
       email: item.email ?? '',
+      contact_id: item.contact_id ?? '',
       source: item.source ?? 'manual',
       campaign: item.campaign ?? '',
       project: item.project ?? '',
+      project_id: item.project_id ?? '',
+      phase_id: item.phase_id ?? '',
+      inventory_asset_id: item.inventory_asset_id ?? '',
       owner_user_id: item.owner_user_id ?? '',
       notes: item.notes ?? '',
       stage: item.stage,
       investment_budget_amount: item.investment_budget_amount ?? '',
       investment_budget_currency: item.investment_budget_currency ?? 'USD',
-    });
-    setFormBaseline({
-      full_name: item.full_name,
-      phone: item.phone ?? '',
-      email: item.email ?? '',
-      source: item.source ?? 'manual',
-      campaign: item.campaign ?? '',
-      project: item.project ?? '',
-      owner_user_id: item.owner_user_id ?? '',
-      notes: item.notes ?? '',
-      stage: item.stage,
-      investment_budget_amount: item.investment_budget_amount ?? '',
-      investment_budget_currency: item.investment_budget_currency ?? 'USD',
-    });
+    };
+    setForm(nextForm);
+    setFormBaseline(nextForm);
+    setProjectSearch(item.project ?? '');
     setFormError(null);
     setDrawer('edit');
   };
@@ -759,16 +923,31 @@ export function CrmLeadsLiveWorkspace() {
       setFormError(t.junkReasonDetailRequired);
       return;
     }
+    const composedName = [form.first_name, form.last_name].map((part) => part?.trim()).filter(Boolean).join(' ');
     const payload: CrmLeadWrite = {
-      full_name: form.full_name?.trim() || undefined,
+      full_name: composedName || form.full_name?.trim() || undefined,
+      first_name: form.first_name?.trim() || undefined,
+      last_name: form.last_name?.trim() || undefined,
       phone: form.phone?.trim() || undefined,
       email: form.email?.trim() || undefined,
+      contact_id: form.contact_id || null,
+      address_line1: form.address_line1?.trim() || undefined,
+      city: form.city?.trim() || undefined,
+      state_province: form.state_province?.trim() || undefined,
+      country: form.country?.trim() || undefined,
+      language: form.language?.trim() || undefined,
+      organization_name: form.organization_name?.trim() || undefined,
+      job_title: form.job_title?.trim() || undefined,
+      next_follow_up_at: form.next_follow_up_at ? new Date(form.next_follow_up_at).toISOString() : null,
       source: form.source || 'manual',
       campaign: form.campaign?.trim() || undefined,
       project: form.project?.trim() || undefined,
+      project_id: form.project_id || null,
+      phase_id: form.phase_id || null,
+      inventory_asset_id: form.inventory_asset_id || null,
       owner_user_id: form.owner_user_id || null,
       notes: form.notes?.trim() || undefined,
-      stage: form.stage,
+      stage: drawer === 'create' ? 'yeni' : form.stage,
       junk_reason: form.stage === 'unqualified' ? form.junk_reason : undefined,
       junk_reason_detail:
         form.stage === 'unqualified' && form.junk_reason === 'other' ? form.junk_reason_detail?.trim() : undefined,
@@ -786,8 +965,8 @@ export function CrmLeadsLiveWorkspace() {
     if (next === item.stage) return;
     if (next === 'converted') {
       setSelectedId(item.id);
-      setDrawer('convert');
-      setConflict(null);
+      const personId = conflict?.matches.find((match) => match.kind === 'person')?.id;
+      convertMutation.mutate({ id: item.id, personId });
       return;
     }
     if (next === 'unqualified') {
@@ -940,14 +1119,22 @@ export function CrmLeadsLiveWorkspace() {
             </option>
           ))}
         </Select>
-        <Select label={t.project} value={project} onChange={(event) => setProject(event.target.value)}>
+        <Select label={t.project} value={project} onChange={(event) => setProject(event.target.value)} data-testid="crm-leads-project-filter">
           <option value="">{t.any}</option>
-          {(data?.projects ?? []).map((item) => (
-            <option key={item} value={item}>
-              {item}
+          {membershipProjects.map((item) => (
+            <option key={item.project_id || item.label} value={item.project_id || ''}>
+              {item.label}
             </option>
           ))}
         </Select>
+        {filterPhases.length > 0 ? (
+          <Select label={locale === 'tr' ? 'Faz' : 'Phase'} value={phaseFilter} onChange={(event) => setPhaseFilter(event.target.value)} data-testid="crm-leads-phase-filter">
+            <option value="">{locale === 'tr' ? 'Tümü' : 'All'}</option>
+            {filterPhases.map((phase) => (
+              <option key={phase.id} value={phase.id}>{phase.name}</option>
+            ))}
+          </Select>
+        ) : null}
         <Select label={t.owner} value={ownerId} onChange={(event) => setOwnerId(event.target.value)}>
           <option value="">{t.any}</option>
           {(data?.owners ?? []).map((item) => (
@@ -972,7 +1159,23 @@ export function CrmLeadsLiveWorkspace() {
 
       {view === 'kanban' ? (
         <div className="crm-ops-kanban" data-testid="crm-leads-kanban">
-          {STAGES.map((column) => (
+          <div className="crm-ops-kanban__inner">
+            <div className="crm-ops-kanban__header-row">
+              {STAGES.map((column) => (
+                <div key={column} className={`crm-ops-kanban__header-cell is-${column}`}>
+                  <h3>
+                    <span className="crm-ops-kanban__dot" aria-hidden />
+                    {stageLabel(column, locale)}
+                  </h3>
+                  <span className="crm-ops-kanban__count">
+                    {boardColumns.find((entry) => entry.stage === column)?.total ?? 0}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="crm-ops-kanban__columns">
+              {STAGES.map((column) => (
             <section
               key={column}
               className={`crm-ops-kanban__col is-${column}${draggingId ? ' is-drop' : ''}`}
@@ -983,16 +1186,7 @@ export function CrmLeadsLiveWorkspace() {
                 if (item) handleStageMove(item, column);
               }}
             >
-              <div className="crm-ops-kanban__head">
-                <h3>
-                  <span className="crm-ops-kanban__dot" aria-hidden />
-                  {stageLabel(column, locale)}
-                </h3>
-                <span className="crm-ops-kanban__count">
-                  {boardColumns.find((entry) => entry.stage === column)?.total ?? 0}
-                </span>
-              </div>
-              <div className="crm-ops-kanban__body">
+<div className="crm-ops-kanban__body">
                 {(boardColumns.find((entry) => entry.stage === column)?.total ?? 0) === 0 ? (
                   <div className="crm-ops-col-empty">
                     <strong>{t.emptyTitle}</strong>
@@ -1038,8 +1232,10 @@ export function CrmLeadsLiveWorkspace() {
                   {t.addLead}
                 </button>
               ) : null}
-            </section>
-          ))}
+                </section>
+              ))}
+            </div>
+          </div>
         </div>
       ) : (
         <div className="crm-ops-tablecard" role="region" aria-label={t.table}>
@@ -1095,7 +1291,7 @@ export function CrmLeadsLiveWorkspace() {
                         <td>
                           <span className={`crm-ops-badge is-${item.stage}`}>{stageLabel(item.stage, locale)}</span>
                         </td>
-                        <td>{item.project || t.none}</td>
+                        <td>{item.interest_label || item.project || t.none}</td>
                         <td>
                           {formatCrmInvestmentBudget(
                             item.investment_budget_amount,
@@ -1162,19 +1358,122 @@ export function CrmLeadsLiveWorkspace() {
           <button type="button" className="crm-ops-drawer-backdrop" aria-label={t.close} onClick={requestCloseDrawer} />
           <aside className="crm-ops-drawer" role="dialog" data-testid="crm-leads-drawer">
             <div className="crm-ops-drawer__head">
-              <h3>
-                {drawer === 'create'
-                  ? t.create
-                  : drawer === 'edit'
-                    ? t.edit
-                    : drawer === 'convert'
-                      ? t.convert
-                      : (selected ? crmLeadDisplayName(selected) : t.title)}
-              </h3>
+              <div className="crm-ops-drawer__identity">
+                <div className="crm-ops-drawer__title-row">
+                  <h3>
+                    {drawer === 'create'
+                      ? t.create
+                      : drawer === 'edit'
+                        ? t.edit
+                        : (selected ? crmLeadDisplayName(selected) : t.title)}
+                  </h3>
+                  {selected && drawer !== 'create' && drawer !== 'edit' ? (
+                    <OsOverflowMenu
+                      label={t.actions}
+                      items={[
+                        selected.converted_contact_id || selected.contact_id
+                          ? {
+                              id: 'open-person',
+                              label: t.openPerson,
+                              testId: 'crm-lead-menu-open-person',
+                              onSelect: () =>
+                                openContact((selected.converted_contact_id || selected.contact_id) as string),
+                            }
+                          : { id: 'open-person', hidden: true },
+                        canUpdate && selected.stage !== 'converted'
+                          ? {
+                              id: 'edit',
+                              label: t.edit,
+                              testId: 'crm-leads-edit',
+                              onSelect: () => openEdit(selected),
+                            }
+                          : { id: 'edit', hidden: true },
+                        {
+                          id: 'matches',
+                          label: t.matches,
+                          href: `/workspaces/crm/matches?q=${encodeURIComponent(crmLeadDisplayName(selected))}` as Route,
+                        },
+                        {
+                          id: 'agreements',
+                          label: t.agreements,
+                          href: `/workspaces/crm/agreements?q=${encodeURIComponent(crmLeadDisplayName(selected))}` as Route,
+                        },
+                        { id: 'divider', divider: true },
+                        canArchive
+                          ? {
+                              id: 'remove',
+                              label: locale === 'tr' ? 'Pipeline’dan Kaldır' : 'Remove from Pipeline',
+                              destructive: true,
+                              testId: 'crm-lead-menu-remove',
+                              onSelect: () => {
+                                const confirmed = window.confirm(
+                                  locale === 'tr'
+                                    ? 'Bu kaydı Pipeline’dan kaldırmak istediğinize emin misiniz?'
+                                    : 'Are you sure you want to remove this record from the Pipeline?',
+                                );
+                                if (confirmed) archiveMutation.mutate(selected.id);
+                              },
+                            }
+                          : { id: 'remove', hidden: true },
+                      ]}
+                    />
+                  ) : null}
+                </div>
+                {selected && drawer !== 'create' && drawer !== 'edit' ? (
+                  <p className="crm-ops-drawer__meta">
+                    {[
+                      sourceLabel(selected.source, locale),
+                      selected.interest_label || selected.project,
+                      selected.phase_name,
+                      selected.unit_number,
+                      displayOwner(selected.owner_name),
+                      stageLabel(selected.stage, locale),
+                    ].filter(Boolean).join(' · ')}
+                  </p>
+                ) : null}
+              </div>
               <button type="button" className="crm-ops-link" onClick={requestCloseDrawer}>
                 {t.close}
               </button>
             </div>
+            {selected && drawer !== 'create' && drawer !== 'edit' ? (
+              <div className="crm-lead-stage" data-testid="crm-lead-stage-control">
+                <span className={`crm-ops-badge is-${selected.stage} is-current`}>{stageLabel(selected.stage, locale)}</span>
+                {canUpdate && selected.stage !== 'converted' ? (
+                  <>
+                    <div className="crm-lead-stage__strip" role="listbox" aria-label={t.stage}>
+                      {STAGES.map((stage) => (
+                        <button
+                          key={stage}
+                          type="button"
+                          role="option"
+                          aria-selected={stage === selected.stage}
+                          className={stage === selected.stage ? 'is-current' : ''}
+                          disabled={convertMutation.isPending || stageMutation.isPending}
+                          onClick={() => handleStageMove(selected, stage)}
+                        >
+                          {stageLabel(stage, locale)}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="crm-lead-stage__menu">
+                      <Select
+                        label={t.stage}
+                        value={selected.stage}
+                        disabled={convertMutation.isPending || stageMutation.isPending}
+                        onChange={(event) => handleStageMove(selected, event.target.value as CrmLeadStage)}
+                      >
+                        {STAGES.map((stage) => (
+                          <option key={stage} value={stage}>
+                            {stageLabel(stage, locale)}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            ) : null}
             <div className="crm-ops-drawer__body">
               {drawer === 'create' || drawer === 'edit' ? (
                 <form
@@ -1184,50 +1483,151 @@ export function CrmLeadsLiveWorkspace() {
                     submitForm(false);
                   }}
                 >
-                  <Input
-                    label={t.name}
-                    value={form.full_name ?? ''}
-                    onChange={(event) => setForm((current) => ({ ...current, full_name: event.target.value }))}
-                  />
-                  <Input
-                    label={t.phone}
-                    value={form.phone ?? ''}
-                    onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
-                  />
-                  <Input
-                    label={t.email}
-                    value={form.email ?? ''}
-                    onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
-                  />
+                  {drawer === 'create' ? (
+                    <CrmContactPicker
+                      selectedId={form.contact_id || ''}
+                      selectedName={form.full_name || ''}
+                      onSelect={(contact) => {
+                        if (!contact) {
+                          setForm((current) => ({ ...current, contact_id: '' }));
+                          return;
+                        }
+                        const parts = contact.name.trim().split(/\s+/);
+                        setForm((current) => ({
+                          ...current,
+                          contact_id: contact.id,
+                          full_name: contact.name,
+                          first_name: parts[0] || '',
+                          last_name: parts.slice(1).join(' '),
+                          phone: contact.phone || current.phone,
+                          email: contact.email || current.email,
+                        }));
+                      }}
+                    />
+                  ) : null}
+                  <Input label="Ad" value={form.first_name ?? ''} onChange={(event) => setForm((current) => ({ ...current, first_name: event.target.value }))} />
+                  <Input label="Soyad" value={form.last_name ?? ''} onChange={(event) => setForm((current) => ({ ...current, last_name: event.target.value }))} />
+                  <Input label={t.phone} value={form.phone ?? ''} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} />
+                  <Input label={t.email} value={form.email ?? ''} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} />
+                  <Input label="Adres" value={form.address_line1 ?? ''} onChange={(event) => setForm((current) => ({ ...current, address_line1: event.target.value }))} />
+                  <Input label="Şehir" value={form.city ?? ''} onChange={(event) => setForm((current) => ({ ...current, city: event.target.value }))} />
+                  <Input label="Bölge / Eyalet" value={form.state_province ?? ''} onChange={(event) => setForm((current) => ({ ...current, state_province: event.target.value }))} />
+                  <Input label="Ülke" value={form.country ?? ''} onChange={(event) => setForm((current) => ({ ...current, country: event.target.value }))} />
+                  <Select label="Dil" value={form.language ?? ''} onChange={(event) => setForm((current) => ({ ...current, language: event.target.value }))}>
+                    <option value="">Seçin</option>
+                    <option value="tr">Türkçe</option>
+                    <option value="en">English</option>
+                  </Select>
+                  <Input label="Şirket" value={form.organization_name ?? ''} onChange={(event) => setForm((current) => ({ ...current, organization_name: event.target.value }))} />
+                  <Input label="Pozisyon" value={form.job_title ?? ''} onChange={(event) => setForm((current) => ({ ...current, job_title: event.target.value }))} />
                   <Select
-                    label={t.source}
+                    label={t.sourceField}
                     value={form.source ?? 'manual'}
                     onChange={(event) => setForm((current) => ({ ...current, source: event.target.value }))}
                   >
-                    {CREATE_SOURCES.map((item) => (
-                      <option key={item} value={item}>
-                        {sourceLabel(item, locale)}
+                    {crmSourceChoices(form.source).map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label || crmSourceLabel(item.value)}
                       </option>
                     ))}
                   </Select>
+                  <Input label="Sonraki Takip" type="datetime-local" value={form.next_follow_up_at ?? ''} onChange={(event) => setForm((current) => ({ ...current, next_follow_up_at: event.target.value }))} />
                   <Input
-                    label={t.interestedProject}
-                    value={form.project ?? ''}
-                    onChange={(event) => setForm((current) => ({ ...current, project: event.target.value }))}
+                    label={locale === 'tr' ? 'Proje ara' : 'Search projects'}
+                    value={projectSearch}
+                    onChange={(event) => setProjectSearch(event.target.value)}
+                    placeholder={locale === 'tr' ? 'Proje adı' : 'Project name'}
                   />
+                  <Select
+                    label={t.interestedProject}
+                    value={form.project_id || ''}
+                    onChange={(event) => {
+                      const projectId = event.target.value;
+                      const match = (projectsQuery.data?.items ?? []).find((item) => item.id === projectId);
+                      setForm((current) => ({
+                        ...current,
+                        project_id: projectId,
+                        project: match?.project_name || (projectId ? current.project : ''),
+                        phase_id: '',
+                        inventory_asset_id: '',
+                      }));
+                      if (match) setProjectSearch(match.project_name);
+                    }}
+                  >
+                    <option value="">{form.project && !form.project_id ? form.project : locale === 'tr' ? 'Seçin' : 'Select'}</option>
+                    {(projectsQuery.data?.items ?? []).map((item) => (
+                      <option key={item.id} value={item.id}>{item.project_name}</option>
+                    ))}
+                  </Select>
+                  {leadUsesPhases && !phaseFieldVisible(leadPhasesQuery.data) ? (
+                    <p data-testid="phased-project-empty">Bu proje fazlı olarak tanımlı. Önce Projeler &gt; Fazlar bölümünden faz oluşturun.</p>
+                  ) : null}
+                  {leadPhaseReady ? (
+                    <Select
+                      label={locale === 'tr' ? 'Faz' : 'Phase'}
+                      value={form.phase_id || ''}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          phase_id: event.target.value,
+                          inventory_asset_id: '',
+                        }))
+                      }
+                    >
+                      <option value="">{locale === 'tr' ? 'Seçin' : 'Select'}</option>
+                      {(leadPhasesQuery.data ?? []).map((phase) => (
+                        <option key={phase.id} value={phase.id}>{phase.name}</option>
+                      ))}
+                    </Select>
+                  ) : null}
+                  {form.project_id && (!leadUsesPhases || (leadPhaseReady && form.phase_id)) ? (
+                    <>
+                      <Select
+                        label={locale === 'tr' ? 'Ünite' : 'Unit'}
+                        value={form.inventory_asset_id || ''}
+                        onChange={(event) => {
+                          const asset = (leadUnitsQuery.data?.items ?? []).find((item) => item.id === event.target.value);
+                          setForm((current) => ({
+                            ...current,
+                            inventory_asset_id: event.target.value,
+                            phase_id: asset?.phase_id || current.phase_id,
+                          }));
+                        }}
+                      >
+                        <option value="">{locale === 'tr' ? 'Seçin' : 'Select'}</option>
+                        {(leadUnitsQuery.data?.items ?? []).filter((item) => !leadUsesPhases || item.phase_id === form.phase_id).map((item) => {
+                          const selectedPhaseName = (leadPhasesQuery.data ?? []).find((phase) => phase.id === form.phase_id)?.name || '';
+                          const identifier = unitIdentifier(item.display_id);
+                          return (
+                            <option key={item.id} value={item.id}>
+                              {selectedPhaseName ? `${selectedPhaseName} · ${identifier}` : identifier}
+                            </option>
+                          );
+                        })}
+                      </Select>
+                      {leadPhaseReady && form.phase_id && (leadUnitsQuery.data?.items ?? []).filter((item) => item.phase_id === form.phase_id).length === 0 ? (
+                        <p data-testid="phase-units-empty">{locale === 'tr' ? 'Bu faza henüz ünite atanmadı.' : 'No units are assigned to this phase yet.'}</p>
+                      ) : null}
+                    </>
+                  ) : null}
                   <Select
                     label={t.owner}
                     value={form.owner_user_id ?? ''}
                     onChange={(event) => setForm((current) => ({ ...current, owner_user_id: event.target.value }))}
                   >
-                    <option value="">{t.any}</option>
-                    {(data?.owners ?? []).map((item) => (
+                    <option value="">{t.unassigned}</option>
+                    {form.owner_user_id && !(activeUsersQuery.data?.items ?? []).some((item) => item.id === form.owner_user_id) ? (
+                      <option value={form.owner_user_id}>
+                        {(form.owner_user_id === user?.id ? displayOwner(user.full_name) : displayOwner(selected?.owner_name)) || form.owner_user_id}
+                      </option>
+                    ) : null}
+                    {(activeUsersQuery.data?.items ?? []).map((item) => (
                       <option key={item.id} value={item.id}>
-                        {displayOwner(item.name) || item.name}
+                        {displayOwner(item.full_name) || item.full_name}
                       </option>
                     ))}
                   </Select>
-                  {drawer === 'create' ? (
+                  {drawer === 'edit' ? (
                     <Select
                       label={t.stage}
                       value={form.stage ?? 'yeni'}
@@ -1277,7 +1677,7 @@ export function CrmLeadsLiveWorkspace() {
                     </>
                   ) : null}
                   <Input
-                    label={t.budget}
+                    label={t.purchaseBudget}
                     value={form.investment_budget_amount ?? ''}
                     onChange={(event) =>
                       setForm((current) => ({ ...current, investment_budget_amount: event.target.value }))
@@ -1285,7 +1685,7 @@ export function CrmLeadsLiveWorkspace() {
                     placeholder={t.budgetPh}
                   />
                   <TextArea
-                    label={t.comments}
+                    label={t.notesField}
                     value={form.notes ?? ''}
                     rows={4}
                     onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
@@ -1314,7 +1714,26 @@ export function CrmLeadsLiveWorkspace() {
                 </form>
               ) : selected ? (
                 <>
-                  {taskFormOpen ? (
+                  <div className="crm-lead-tabs" role="tablist">
+                    {([
+                      ['general', t.generalTab],
+                      ['tasks', t.tasksTab],
+                      ['notes', t.notesTab],
+                      ['history', t.historyTab],
+                    ] as const).map(([id, label]) => (
+                      <button
+                        key={id}
+                        type="button"
+                        role="tab"
+                        aria-selected={detailTab === id}
+                        className={detailTab === id ? 'is-current' : ''}
+                        onClick={() => setDetailTab(id)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {detailTab === 'tasks' && taskFormOpen ? (
                     <form
                       className="crm-ops-taskform"
                       data-testid="crm-lead-task-form"
@@ -1344,6 +1763,14 @@ export function CrmLeadsLiveWorkspace() {
                         onChange={(event) => setTaskForm((current) => ({ ...current, time: event.target.value }))}
                         required
                       />
+                      <Select
+                        label={t.taskReminder}
+                        value={taskForm.reminder}
+                        onChange={(event) => setTaskForm((current) => ({ ...current, reminder: event.target.value }))}
+                      >
+                        <option value="10">{t.taskReminder10}</option>
+                        <option value="none">{t.taskReminderNone}</option>
+                      </Select>
                       {taskFormError ? <p className="crm-ops-conflict">{taskFormError}</p> : null}
                       <div className="crm-ops-taskform__actions">
                         <Button
@@ -1368,10 +1795,29 @@ export function CrmLeadsLiveWorkspace() {
                     item={selected}
                     locale={locale}
                     t={t}
-                    canUpdate={canUpdate}
-                    onStage={(next) => handleStageMove(selected, next)}
-                    onPerson={openContact}
+                    tab={detailTab}
                   />
+                  {detailTab === 'notes' && canCreate && (selected.contact_id || selected.converted_contact_id) ? (
+                    <form
+                      className="crm-ops-taskform"
+                      data-testid="crm-lead-note-form"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        if (!noteDraft.trim() || noteMutation.isPending) return;
+                        noteMutation.mutate();
+                      }}
+                    >
+                      <TextArea
+                        label={t.notePlaceholder}
+                        value={noteDraft}
+                        rows={3}
+                        onChange={(event) => setNoteDraft(event.target.value)}
+                      />
+                      <Button type="submit" size="sm" disabled={!noteDraft.trim() || noteMutation.isPending}>
+                        {t.addNote}
+                      </Button>
+                    </form>
+                  ) : null}
                 </>
               ) : (
                 <LoadingState />
@@ -1382,104 +1828,81 @@ export function CrmLeadsLiveWorkspace() {
                   {conflict.matches.map((match) => (
                     <ConflictLink key={`${match.kind}-${match.id}`} match={match} onPerson={(id) => openContact(id)} />
                   ))}
+                  {selected ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={convertMutation.isPending}
+                      onClick={() => {
+                        const personId = conflict.matches.find((item) => item.kind === 'person')?.id;
+                        convertMutation.mutate({ id: selected.id, personId });
+                      }}
+                    >
+                      {convertMutation.isPending ? t.converting : t.reusePerson}
+                    </Button>
+                  ) : null}
                 </div>
+              ) : null}
+              {emailComposeOpen && selected?.email && drawer !== 'create' ? (
+                <EmailSendComposer
+                  mode="new"
+                  contactId={selected.contact_id || selected.converted_contact_id}
+                  leadId={selected.id}
+                  defaultTo={selected.email}
+                  defaultSubject=""
+                  onSent={() => setEmailComposeOpen(false)}
+                />
+              ) : null}
+              {whatsappComposeOpen && selected?.phone && drawer !== 'create' ? (
+                <WhatsAppSendComposer
+                  mode="new"
+                  contactId={selected.contact_id || selected.converted_contact_id}
+                  leadId={selected.id}
+                  phones={[selected.phone]}
+                  onSent={() => setWhatsappComposeOpen(false)}
+                />
               ) : null}
             </div>
             {selected && drawer !== 'create' && drawer !== 'edit' ? (
-              <div className="crm-ops-drawer__actions">
-                <Link
-                  href={`/workspaces/crm/matches?q=${encodeURIComponent(crmLeadDisplayName(selected))}` as Route}
-                  className="crm-ops-link"
-                >
-                  {t.matches}
-                </Link>
-                <Link
-                  href={`/workspaces/crm/agreements?q=${encodeURIComponent(crmLeadDisplayName(selected))}` as Route}
-                  className="crm-ops-link"
-                >
-                  {t.agreements}
-                </Link>
-                {canUpdate && drawer !== 'convert' && selected.stage !== 'converted' ? (
-                  <Button type="button" size="sm" variant="secondary" data-testid="crm-leads-edit" onClick={() => openEdit(selected)}>
-                    {t.edit}
-                  </Button>
-                ) : null}
-                {canSendEmail && selected.email && drawer !== 'convert' ? (
+              <div className="crm-ops-drawer__actions crm-ops-drawer__quick" data-testid="crm-lead-actions">
+                {canSendEmail && selected.email ? (
                   <Button
                     type="button"
                     size="sm"
-                    variant="secondary"
-                    onClick={() => setEmailComposeOpen((open) => !open)}
-                  >
-                    {locale === 'tr' ? 'E-posta gönder' : 'Send email'}
-                  </Button>
-                ) : null}
-                {canSendEmail && selected.phone && drawer !== 'convert' ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => setWhatsappComposeOpen((open) => !open)}
-                  >
-                    {locale === 'tr' ? 'WhatsApp mesajı gönder' : 'Send WhatsApp'}
-                  </Button>
-                ) : null}
-                {canAddTask && drawer !== 'convert' ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
                     onClick={() => {
+                      setEmailComposeOpen((open) => !open);
+                      setWhatsappComposeOpen(false);
+                    }}
+                  >
+                    <IhIcon name="mail" size={14} /> {t.emailAction}
+                  </Button>
+                ) : null}
+                {canSendEmail && selected.phone ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      setWhatsappComposeOpen((open) => !open);
+                      setEmailComposeOpen(false);
+                    }}
+                  >
+                    <IhIcon name="phone" size={14} /> {t.whatsappAction}
+                  </Button>
+                ) : null}
+                {canAddTask ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      setDetailTab('tasks');
                       setTaskFormOpen(true);
                       setTaskFormError(null);
                     }}
                   >
-                    {t.addTask}
-                  </Button>
-                ) : null}
-                {canUpdate && selected.stage !== 'converted' ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    data-testid="crm-leads-convert"
-                    disabled={convertMutation.isPending}
-                    onClick={() => {
-                      const personId = conflict?.matches.find((item) => item.kind === 'person')?.id;
-                      convertMutation.mutate({ id: selected.id, personId });
-                    }}
-                  >
-                    {convertMutation.isPending ? t.converting : t.convert}
-                  </Button>
-                ) : null}
-                {selected.converted_contact_id || selected.contact_id ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => openContact((selected.converted_contact_id || selected.contact_id) as string)}
-                  >
-                    {t.openPerson}
+                    <IhIcon name="plus" size={14} /> {t.addTask}
                   </Button>
                 ) : null}
               </div>
-            ) : null}
-            {emailComposeOpen && selected?.email && drawer !== 'create' ? (
-              <EmailSendComposer
-                mode="new"
-                contactId={selected.contact_id || selected.converted_contact_id}
-                leadId={selected.id}
-                defaultTo={selected.email}
-                defaultSubject=""
-                onSent={() => setEmailComposeOpen(false)}
-              />
-            ) : null}
-            {whatsappComposeOpen && selected?.phone && drawer !== 'create' ? (
-              <WhatsAppSendComposer
-                mode="new"
-                contactId={selected.contact_id || selected.converted_contact_id}
-                leadId={selected.id}
-                phones={[selected.phone]}
-                onSent={() => setWhatsappComposeOpen(false)}
-              />
             ) : null}
           </aside>
         </>
@@ -1539,7 +1962,7 @@ function LeadCard({
           {t.referrer}: {referrer}
         </small>
       ) : null}
-      {item.project ? <small>{item.project}</small> : null}
+      {item.interest_label || item.project ? <small>{item.interest_label || item.project}</small> : null}
       {item.investment_budget_amount ? (
         <small>
           {t.budget}: {formatCrmInvestmentBudget(item.investment_budget_amount, item.investment_budget_currency, locale)}
@@ -1560,25 +1983,84 @@ function LeadDetail({
   item,
   locale,
   t,
-  canUpdate,
-  onStage,
-  onPerson,
+  tab,
 }: {
   item: LeadView;
   locale: 'tr' | 'en';
   t: (typeof COPY)['tr'];
-  canUpdate: boolean;
-  onStage: (next: CrmLeadStage) => void;
-  onPerson: (id: string) => void;
+  tab: DetailTab;
 }) {
   const referrer = referrerLabel(item);
   const reason = unqualifiedReason(item, locale);
   const activity = item.activity ?? [];
+  if (tab === 'tasks') {
+    return (
+      <>
+        <h4>{t.tasks}</h4>
+        <p className="crm-ops-muted">{t.taskReminder10}</p>
+        {(item.tasks ?? []).length === 0 ? (
+          <p className="crm-ops-muted">{t.none}</p>
+        ) : (
+          <ul className="crm-ops-tasklist">
+            {(item.tasks ?? []).map((task: CrmLeadTaskItem) => (
+              <li key={task.id}>
+                <strong>{task.title}</strong>
+                <small>
+                  {formatTaskDuePart(task.due_date, locale, 'date')} · {formatTaskDuePart(task.due_date, locale, 'time')} ·{' '}
+                  {t.taskStatus}: {taskStatusLabel(task.status || task.task_status, locale)}
+                </small>
+              </li>
+            ))}
+          </ul>
+        )}
+      </>
+    );
+  }
+  if (tab === 'notes') {
+    const entries = item.note_entries?.length
+      ? item.note_entries
+      : item.notes
+        ? [{ id: item.id, body: item.notes, author_name: item.owner_name, created_at: item.created_at }]
+        : [];
+    return (
+      <>
+        <h4>{t.notesTab}</h4>
+        {entries.length === 0 ? <p className="crm-ops-muted">{t.none}</p> : null}
+        <ul className="crm-ops-history" data-testid="crm-lead-notes">
+          {entries.map((entry) => (
+            <li key={entry.id}>
+              {entry.body}
+              <small>
+                {entry.author_name || t.none} · {formatWhen(entry.created_at, locale)}
+              </small>
+            </li>
+          ))}
+        </ul>
+      </>
+    );
+  }
+  if (tab === 'history') {
+    return (
+      <>
+        <h4>{t.history}</h4>
+        <ul className="crm-ops-history">
+          {activity.length === 0 ? <li>{t.none}</li> : null}
+          {activity.map((event) => (
+            <li key={event.id}>
+              {activityLabel(event.description, locale)}
+              {typeof event.metadata?.preview === 'string' && event.metadata.preview ? ` — ${event.metadata.preview}` : ''}
+              <small>
+                {event.actor_name || t.none} · {formatWhen(event.created_at, locale)}
+              </small>
+            </li>
+          ))}
+        </ul>
+      </>
+    );
+  }
   return (
     <>
       <dl className="crm-ops-kv">
-        <dt>{t.name}</dt>
-        <dd>{crmLeadDisplayName(item)}</dd>
         <dt>{t.phone}</dt>
         <dd>{item.phone || t.none}</dd>
         <dt>{t.email}</dt>
@@ -1594,7 +2076,19 @@ function LeadDetail({
           </>
         ) : null}
         <dt>{t.interestedProject}</dt>
-        <dd>{item.project || t.none}</dd>
+        <dd>{item.interest_label || item.project || t.none}</dd>
+        {item.phase_name ? (
+          <>
+            <dt>{locale === 'tr' ? 'Faz' : 'Phase'}</dt>
+            <dd>{item.phase_name}</dd>
+          </>
+        ) : null}
+        {item.unit_number ? (
+          <>
+            <dt>{locale === 'tr' ? 'Ünite' : 'Unit'}</dt>
+            <dd>{item.unit_number}</dd>
+          </>
+        ) : null}
         <dt>{t.budget}</dt>
         <dd>{formatCrmInvestmentBudget(item.investment_budget_amount, item.investment_budget_currency, locale)}</dd>
         <dt>{t.stage}</dt>
@@ -1615,67 +2109,6 @@ function LeadDetail({
         <dt>{t.created}</dt>
         <dd>{formatWhen(item.created_at, locale)}</dd>
       </dl>
-
-      <h4>{t.comments}</h4>
-      {item.notes ? <p className="crm-ops-note">{item.notes}</p> : <p className="crm-ops-muted">{t.none}</p>}
-
-      {canUpdate && item.stage !== 'converted' ? (
-        <Select label={t.stage} value={item.stage} onChange={(event) => onStage(event.target.value as CrmLeadStage)}>
-          {STAGES.filter((stage) => stage !== 'converted').map((stage) => (
-            <option key={stage} value={stage}>
-              {stageLabel(stage, locale)}
-            </option>
-          ))}
-        </Select>
-      ) : null}
-
-      {item.converted_contact_id || item.contact_id || item.existing_person_id ? (
-        <p>
-          <button
-            type="button"
-            className="crm-ops-link"
-            onClick={() =>
-              onPerson(
-                (item.converted_contact_id || item.contact_id || item.existing_person_id) as string,
-              )
-            }
-          >
-            {t.openPerson}:{' '}
-            {item.converted_contact_name || item.contact_name || item.existing_person_name || item.contact_id}
-          </button>
-        </p>
-      ) : null}
-
-      <h4>{t.tasks}</h4>
-      {(item.tasks ?? []).length === 0 ? (
-        <p className="crm-ops-muted">{t.none}</p>
-      ) : (
-        <ul className="crm-ops-tasklist">
-          {(item.tasks ?? []).map((task: CrmLeadTaskItem) => (
-            <li key={task.id}>
-              <strong>{task.title}</strong>
-              <small>
-                {formatTaskDuePart(task.due_date, locale, 'date')} · {formatTaskDuePart(task.due_date, locale, 'time')} ·{' '}
-                {t.taskStatus}: {taskStatusLabel(task.status || task.task_status, locale)}
-              </small>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <h4>{t.history}</h4>
-      <ul className="crm-ops-history">
-        {activity.length === 0 ? <li>{t.none}</li> : null}
-        {activity.map((event) => (
-          <li key={event.id}>
-            {activityLabel(event.description, locale)}
-            {typeof event.metadata?.preview === 'string' && event.metadata.preview ? ` — ${event.metadata.preview}` : ''}
-            <small>
-              {event.actor_name || t.none} · {formatWhen(event.created_at, locale)}
-            </small>
-          </li>
-        ))}
-      </ul>
       <p className="crm-ops-muted">{t.convertHint}</p>
     </>
   );

@@ -16,7 +16,7 @@ from investhome_api.models.crm_activity import (
     CrmActivityType,
     CrmTaskStatus,
 )
-from investhome_api.models.crm_agreement import CrmAgreement
+from investhome_api.models.crm_agreement import CrmAgreement, CrmAgreementStatus
 from investhome_api.models.crm_contact import (
     CrmContact,
     CrmContactDuplicateCandidate,
@@ -210,7 +210,9 @@ def _split_agreements(db: Session) -> tuple[list[CrmAgreement], list[CrmAgreemen
     current = [
         row
         for row in rows
-        if not is_historical_unit_change(row) and not is_relationship_detached(row)
+        if not is_historical_unit_change(row)
+        and not is_relationship_detached(row)
+        and row.status != CrmAgreementStatus.CANCELLED
     ]
     historical = [row for row in rows if is_historical_unit_change(row)]
     return current, historical
@@ -297,7 +299,7 @@ def _matches_pending(db: Session) -> int:
 
 def _lead_pipeline(db: Session) -> tuple[int, list[CrmDashboardCount], list[Lead]]:
     """Stage totals for every live lead. The recent panel is a separate short list."""
-    filters = _lead_filters()
+    filters = _lead_filters(db)
     kpis = _kpis_for(db, filters)
     totals = _stage_totals(_status_counts(db, filters))
     recent = list(
